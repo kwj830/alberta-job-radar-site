@@ -1,0 +1,140 @@
+<title>Alberta 求职雷达</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+:root{--bg:#fbfaf8;--fg:#1c1b19;--muted:#6b6864;--card:#fff;--line:#e5e2dd;
+--accent:#1f6f5c;--warn:#9a5b00;--chip:#f0ede8}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#16151a;--fg:#eceae6;
+--muted:#9a958e;--card:#201f26;--line:#312f38;--accent:#5fb89c;--warn:#d99a3a;--chip:#2a2831}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB",sans-serif}
+.wrap{max-width:860px;margin:0 auto;padding-block:18px;padding-left:16px;padding-right:16px}
+h1{font-size:19px;margin:0 0 2px}
+.sub{color:var(--muted);font-size:12.5px;margin-bottom:14px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.tab{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:999px;
+padding:7px 13px;font-size:13px;cursor:pointer}
+.tab[aria-selected=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+padding:13px 14px;margin-bottom:10px}
+.card h2{font-size:15.5px;margin:0 0 4px;line-height:1.35}
+.meta{color:var(--muted);font-size:13px;margin-bottom:8px}
+.facts{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.chip{background:var(--chip);border-radius:6px;padding:2.5px 8px;font-size:12px}
+.warn{color:var(--warn);font-size:12.5px;margin:6px 0}
+.links a{color:var(--accent);font-size:13px;margin-right:12px}
+details{margin-top:8px}summary{cursor:pointer;font-size:13px;color:var(--muted)}
+pre.desc{white-space:pre-wrap;font:12.5px/1.5 inherit;background:var(--chip);
+padding:10px;border-radius:8px;max-height:420px;overflow:auto;margin:8px 0 0}
+.empty{color:var(--muted);padding:26px 0;text-align:center}
+.status{border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+background:var(--card);margin-top:20px;font-size:13px}
+.status table{width:100%;border-collapse:collapse}
+.status td{padding:3px 0;vertical-align:top}
+.ok{color:var(--accent)}.bad{color:#c0392b}.status .warn{color:var(--warn);font-size:inherit;margin:0}
+footer{color:var(--muted);font-size:11.5px;margin-top:18px;line-height:1.7}
+</style>
+<div class="wrap">
+  <h1>Alberta 求职雷达</h1>
+  <div class="sub">只收录公开招聘信息 · 个人分析不在本页 · 最近运行 <span id="lastrun">—</span></div>
+  <div class="tabs"></div>
+  <div class="sub" id="count"></div>
+  <div id="list"><div class="empty">加载中…</div></div>
+
+  <div class="status">
+    <strong>运行状态</strong>
+    <table><tbody id="srcrows"></tbody></table>
+    <div class="meta" id="countsline" style="margin-top:8px"></div>
+    <div class="meta" id="transitline" style="margin-top:4px"></div>
+  </div>
+
+  <footer>
+    <div><strong>覆盖边界</strong>：本系统只抓取明确允许抓取的公开来源。
+    Indeed、LinkedIn 的服务条款禁止自动抓取，<b>未覆盖</b>，需你自行查看或通过其官方邮件提醒获取。
+    校内学生岗位平台 campusBRIDGE 需登录，<b>未覆盖</b>。
+    因此本页面<b>不等于</b> Alberta 全部岗位。</div>
+    <div>薪资一律为雇主公布原值；未公布即显示「未公布」，绝不用估算值替代。</div>
+    <div><strong>招聘原文</strong>：本页只给出<b>限长摘录</b>与<b>原始链接</b>，
+    不转载招聘全文 —— 抓取许可不等于转载许可，文本版权属于发布方。
+    完整职责与要求请点原始申请链接查看。</div>
+    <div>规则核查日期 2026-09-12，来源 canada.ca / alberta.ca 官方页面。规则可能变动，请定期复核。</div>
+    <div><strong>公交信息</strong>：本页只给出岗位地点附近<b>最近公交站的距离</b>
+    和<b>经过该站的线路</b>，这是地点本身的属性。
+    只对公布了精确地址的岗位可算 —— Job Bank 的订阅源只给城市名，
+    省政府多数岗位也只写到城市，这些岗位会明写「无法判断」而不是留空。
+    站点距离<b>不等于乘车时间</b>，也未考虑班次频率与末班车
+    （冬天晚班尤其要自己确认）。</div>
+    <div>Contains information licensed under the Open Government Licence - Canada.</div>
+    <div>Contains information licensed under the Open Government Licence - City of Edmonton.</div>
+  </footer>
+</div>
+<script>
+let DATA = {jobs:[],status:{},boards:[]};
+let active = DATA.boards.length ? DATA.boards[0][0] : 'part_time';
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function card(j){
+  const facts = (j.facts||[]).map(f=>`<span class="chip">${esc(f)}</span>`).join('');
+  const warns = (j.warnings||[]).map(w=>`<div class="warn">${esc(w)}</div>`).join('');
+  const links = (j.source_urls||[]).map((u,i)=>
+    `<a href="${esc(u)}" target="_blank" rel="noopener">${i===0?'原始申请链接':'来源 '+(i+1)}</a>`).join('');
+  const inferred = j.board_confidence === 'inferred'
+    ? `<div class="warn">全职/兼职为推断 —— 招聘原文未写明，投递前请向雇主确认实际工时</div>` : '';
+  const unknown = (j.unknown_fields||[]).length
+    ? `<div class="meta">未公布：${j.unknown_fields.map(esc).join('、')}</div>` : '';
+  const desc = j.excerpt
+    ? `<div class="desc">${esc(j.excerpt)}<div class="meta">—— 摘录自招聘原文，完整职责与要求请点上方原始申请链接</div></div>` : '';
+  return `<article class="card">
+    <h2>${esc(j.title)}</h2>
+    <div class="meta">${esc(j.employer||'雇主未公布')} · ${esc(j.work_address||j.city||'地点未公布')}</div>
+    <div class="facts">${facts}</div>${warns}${inferred}${unknown}
+    <div class="links">${links}</div>
+    <div class="meta" style="margin-top:6px">发布 ${esc(j.posted_on||'未知')} · 首次发现 ${esc((j.first_seen_at||'').slice(0,10)||'—')} · 详情最近抓取 ${esc((j.last_checked_at||'').slice(0,10)||'—')}</div>
+    ${desc}
+  </article>`;
+}
+function renderTabs(){
+  document.querySelector('.tabs').innerHTML = DATA.boards
+    .map(([id,label])=>`<button class="tab" data-board="${esc(id)}" aria-selected="false">${esc(label)}</button>`).join('');
+  const s = DATA.status || {};
+  const rows = Object.values(s.sources||{}).map(i=>{
+    const badge = !i.ok ? '<span class="bad">失败</span>'
+      : (i.skipped_this_run ? '<span class="meta">本轮跳过</span>'
+      : (i.partial ? '<span class="warn">部分</span>' : '<span class="ok">正常</span>'));
+    const detail = !i.ok ? esc(String(i.error||'').slice(0,150))
+      : (i.skipped_this_run ? esc(i.note||'按计划跳过')
+      : (i.partial ? `${i.count} 条，另有 ${i.skipped} 条未抓到（本轮不参与下架判定）` : `${i.count} 条`));
+    const amber = i.compliance==='amber' ? '（合规状态不明确，已低频自限）' : '';
+    return `<tr><td>${esc(i.name)}${amber}</td><td>${badge}</td><td>${detail}</td></tr>`;
+  }).join('');
+  document.getElementById('srcrows').innerHTML = rows || '<tr><td>无数据源</td><td></td><td></td></tr>';
+  const c = s.counts||{};
+  const t = s.transit || {};
+  document.getElementById('transitline').textContent = t.note || '';
+  document.getElementById('transitline').className = t.expired ? 'warn' : 'meta';
+  document.getElementById('countsline').textContent =
+    `在列岗位 ${c.open||0} · 已关闭 ${c.closed_total||0} · 本轮新增 ${c.new_this_run||0} · 跨源合并 ${c.merged_duplicates||0}`;
+  document.getElementById('lastrun').textContent = s.last_run_at || '—';
+}
+function render(){
+  document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected', String(t.dataset.board===active)));
+  const list = DATA.jobs.filter(j=>(j.boards||[]).includes(active));
+  document.getElementById('list').innerHTML = list.length
+    ? list.map(card).join('')
+    : '<div class="empty">这个板块暂时没有岗位。<br>这不一定是系统故障 —— 请看下方运行状态。</div>';
+  document.getElementById('count').textContent = list.length + ' 个岗位';
+}
+document.addEventListener('click', e=>{
+  if(e.target.classList.contains('tab')){ active = e.target.dataset.board; render(); }
+});
+
+(async function init(){
+  try{
+    DATA = await (await fetch('data.json')).json();
+    active = DATA.boards.length ? DATA.boards[0][0] : 'part_time';
+    renderTabs(); render();
+  }catch(err){
+    document.getElementById('list').innerHTML =
+      '<div class="empty">数据加载失败：' + esc(err) + '</div>';
+  }
+})();
+</script>
