@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>求职雷达 · Job Radar</title>
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="求职雷达">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#2f6f5e">
 <style>
 :root{
   --bg:#f7f4ef; --panel:#fffdf9; --ink:#2b2824; --muted:#6f6a62; --faint:#a39d93;
@@ -336,6 +344,7 @@ function card(j){
       <span><b>截止 Deadline</b>${esc(dlText)}</span>
       ${j.noc && j.noc.code ? `<span><b>NOC</b>${esc(j.noc.code)} · TEER ${esc(j.noc.teer)}</span>` : ""}
     </div>
+    ${j.note ? `<div class="source" style="color:var(--ink)">💬 ${esc(j.note)}</div>` : ""}
     <div class="source">来源 Source：<b>${esc(j.source.zh)}</b> · ${esc(j.source.en)} · <a href="${esc(j.url)}" target="_blank" rel="noopener">查看原文 Open posting ↗</a></div>
     <details><summary>为什么推荐 / 注意事项 · Why & notes</summary>
       ${ev ? `<ul class="marks">${ev}</ul>` : ""}<ul class="marks">${marks}</ul>
