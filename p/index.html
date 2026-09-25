@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>求职雷达 · Job Radar</title>
+<style>
+:root{
+  --bg:#f7f4ef; --panel:#fffdf9; --ink:#2b2824; --muted:#6f6a62; --faint:#a39d93;
+  --line:#e7e1d7; --accent:#2f6f5e; --accent-soft:#e3efe9; --gold:#a8741a; --gold-soft:#f6ecd8;
+  --rose:#a4473d; --rose-soft:#f6e3df; --blue:#35608f; --blue-soft:#e3ebf5;
+  --radius:16px; --shadow:0 1px 2px rgba(60,50,30,.05),0 6px 20px rgba(60,50,30,.05);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#1c1b19; --panel:#252420; --ink:#ece8e1; --muted:#b0aa9f; --faint:#7d776d;
+  --line:#3a3833; --accent:#7cc2ad; --accent-soft:#233a33; --gold:#e0b35c; --gold-soft:#3b3222;
+  --rose:#e59488; --rose-soft:#3f2825; --blue:#8fb4e0; --blue-soft:#253346; color-scheme:dark;}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font:17px/1.65 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Helvetica Neue",sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+.en{color:var(--muted);font-size:.82em;margin-left:.35em;font-weight:400}
+.wrap{max-width:1240px;margin:0 auto;padding:28px 24px 64px}
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+h1{font-size:28px;margin:0;font-weight:650;letter-spacing:.01em}
+.sub{color:var(--muted);font-size:15px;margin-top:4px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:9px 16px;cursor:pointer;
+  box-shadow:var(--shadow);transition:.15s}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.small{padding:6px 12px;font-size:14px}
+.layout{display:grid;grid-template-columns:290px 1fr;gap:26px;align-items:start}
+aside{position:sticky;top:18px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:20px;box-shadow:var(--shadow)}
+aside h3{font-size:14px;color:var(--muted);font-weight:600;margin:18px 0 8px;letter-spacing:.02em}
+aside h3:first-child{margin-top:0}
+.field{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:10px 12px}
+.cats{display:flex;flex-direction:column;gap:6px}
+.cat{display:flex;justify-content:space-between;align-items:center;border:1px solid transparent;border-radius:12px;
+  padding:9px 12px;cursor:pointer;background:transparent;text-align:left;width:100%}
+.cat:hover{background:var(--bg)}
+.cat.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+.count{font-size:13px;color:var(--faint);font-weight:500}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:14px;cursor:pointer;background:transparent}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.reset{margin-top:18px;width:100%}
+main .summary{color:var(--muted);font-size:15px;margin:2px 0 14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:22px 24px;margin-bottom:16px;
+  box-shadow:var(--shadow)}
+.card.saved{border-color:var(--gold)}
+.row1{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.title{font-size:20px;font-weight:650;line-height:1.35;margin:0}
+.title a{color:inherit;text-decoration:none}
+.title a:hover{text-decoration:underline}
+.meta{color:var(--muted);margin-top:4px}
+.star{border:none;background:none;font-size:26px;line-height:1;cursor:pointer;color:var(--faint);padding:2px 4px}
+.star.on{color:var(--gold)}
+.badges{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px}
+.badge{font-size:13px;border-radius:999px;padding:3px 10px;font-weight:600}
+.b-atp{background:var(--gold-soft);color:var(--gold)}
+.b-grad{background:var(--blue-soft);color:var(--blue)}
+.b-strong{background:var(--accent-soft);color:var(--accent)}
+.b-possible{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.b-part{background:var(--rose-soft);color:var(--rose)}
+.facts{display:flex;gap:18px;flex-wrap:wrap;color:var(--ink);font-size:15px;margin-top:10px}
+.facts span b{color:var(--muted);font-weight:500;margin-right:4px}
+.source{margin-top:12px;font-size:14px;color:var(--muted)}
+.source b{font-weight:600;color:var(--ink)}
+details{margin-top:12px}
+summary{cursor:pointer;color:var(--accent);font-size:15px}
+.marks{margin:10px 0 0;padding:0;list-style:none}
+.marks li{padding:6px 0;border-top:1px dashed var(--line);font-size:15px}
+.excerpt{color:var(--muted);font-size:14px;margin-top:10px;white-space:pre-wrap}
+.track{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.track select{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:7px 10px}
+.track textarea{flex:1 1 100%;min-height:44px;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:9px 12px;resize:vertical}
+.resume-state{font-size:14px;color:var(--muted)}
+.empty{text-align:center;color:var(--muted);padding:60px 20px}
+.gate{max-width:440px;margin:12vh auto;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:34px;box-shadow:var(--shadow)}
+.gate h1{font-size:26px}
+.gate p{color:var(--muted)}
+.gate .field{margin:14px 0}
+.err{color:var(--rose);font-size:14px;min-height:1.4em}
+.hint{font-size:13px;color:var(--faint)}
+.sync{font-size:13px;color:var(--faint)}
+.sheet{position:fixed;inset:0;background:rgba(20,18,15,.35);display:flex;align-items:center;justify-content:center;padding:20px;z-index:9}
+.sheet .box{background:var(--panel);border-radius:20px;max-width:520px;width:100%;padding:28px;box-shadow:var(--shadow)}
+.filters-toggle{display:none}
+@media (max-width:860px){
+  .wrap{padding:18px 16px 48px}
+  .layout{grid-template-columns:1fr}
+  aside{position:static;display:none}
+  aside.open{display:block}
+  .filters-toggle{display:inline-flex}
+  .title{font-size:18px}
+  .card{padding:18px}
+}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+<div id="gate" class="gate">
+  <h1>求职雷达<span class="en">Job Radar</span></h1>
+  <p>私人看板，内容已加密。请输入口令。<br><span class="hint">Private board — encrypted. Enter your passphrase.</span></p>
+  <input id="pass" class="field" type="password" autocomplete="current-password" placeholder="口令 Passphrase">
+  <label class="hint"><input type="checkbox" id="remember"> 在这台设备上记住 · Remember on this device</label>
+  <div class="err" id="gateErr"></div>
+  <button class="btn primary" id="unlock" style="width:100%">打开 · Unlock</button>
+</div>
+
+<div id="app" class="wrap" hidden>
+  <header class="top">
+    <div>
+      <h1>求职雷达<span class="en">Job Radar</span></h1>
+      <div class="sub" id="updated"></div>
+    </div>
+    <div class="toolbar">
+      <button class="btn filters-toggle" id="toggleFilters">筛选<span class="en">Filters</span></button>
+      <button class="btn" id="openSettings">同步设置<span class="en">Sync</span></button>
+      <button class="btn" id="lock">锁定<span class="en">Lock</span></button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside id="filters">
+      <h3>分类 <span class="en">Category</span></h3>
+      <div class="cats" id="cats"></div>
+
+      <h3>关键词 <span class="en">Keyword</span></h3>
+      <input class="field" id="q" placeholder="职位、雇主、技能… Title, employer, skill">
+
+      <h3>对口程度 <span class="en">Fit</span></h3>
+      <div class="chips" id="fitChips"></div>
+
+      <h3>城市 <span class="en">City</span></h3>
+      <select class="field" id="city"></select>
+
+      <h3>雇主 <span class="en">Employer</span></h3>
+      <select class="field" id="employer"></select>
+
+      <h3>来源网站 <span class="en">Source</span></h3>
+      <select class="field" id="source"></select>
+
+      <h3>薪资下限 <span class="en">Min. salary</span></h3>
+      <select class="field" id="salary">
+        <option value="">不限 Any</option>
+        <option value="20">≥ $20 / 时 hr（或年薪 ≥ $41k）</option>
+        <option value="25">≥ $25 / 时 hr（或年薪 ≥ $52k）</option>
+        <option value="30">≥ $30 / 时 hr（或年薪 ≥ $62k）</option>
+        <option value="35">≥ $35 / 时 hr（或年薪 ≥ $73k）</option>
+      </select>
+
+      <h3>截止日期 <span class="en">Deadline</span></h3>
+      <select class="field" id="deadline">
+        <option value="">不限 Any</option>
+        <option value="7">7 天内截止 Within 7 days</option>
+        <option value="14">14 天内截止 Within 14 days</option>
+        <option value="open">未过期 Not expired</option>
+      </select>
+
+      <h3>投递进度 <span class="en">Status</span></h3>
+      <select class="field" id="status"></select>
+
+      <button class="btn reset" id="reset">清空筛选<span class="en">Reset</span></button>
+    </aside>
+
+    <main>
+      <div class="summary" id="summary"></div>
+      <div id="list"></div>
+    </main>
+  </div>
+</div>
+
+<div class="sheet" id="settings" hidden>
+  <div class="box">
+    <h2 style="margin-top:0">同步设置<span class="en">Sync settings</span></h2>
+    <p class="hint">收藏、投递进度、备注和「制作简历」请求保存在你的<b>私有</b> GitHub 仓库里，手机和电脑共用。
+      需要一个只对这个仓库有读写权限的 GitHub 令牌（fine-grained token）。令牌只存在这台设备的浏览器里。<br>
+      Saved jobs, status, notes and résumé requests sync through your private GitHub repo.</p>
+    <input class="field" id="token" type="password" placeholder="github_pat_…" style="margin:10px 0">
+    <div class="err" id="tokenErr"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn" id="clearToken">清除 Clear</button>
+      <button class="btn" id="closeSettings">关闭 Close</button>
+      <button class="btn primary" id="saveToken">保存并同步 Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const STATUSES = [["", "未开始", "Not started"], ["todo", "待投", "To apply"], ["applied", "已投", "Applied"],
+  ["interview", "面试", "Interview"], ["offer", "Offer", "Offer"], ["rejected", "拒绝", "Rejected"]];
+const CATS = [["all", "全部", "All"], ["pr", "PR 优选", "PR priority"], ["full", "全职", "Full-time"],
+  ["part", "兼职", "Part-time"], ["saved", "我的收藏", "Saved"]];
+const FITS = [["strong", "强对口", "Strong"], ["possible", "可能对口", "Possible"], ["none", "其他", "Other"]];
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch(e){} },
+  del(k){ try { localStorage.removeItem(k); } catch(e){} },
+};
+let DATA = null, TRACK = {items:{}}, SHA = null, state = {cat:"all", fits:new Set()};
+
+// ── 解密 ───────────────────────────────────────────
+const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function decrypt(pass){
+  const blob = await (await fetch("data.enc", {cache:"no-store"})).json();
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey({name:"PBKDF2", salt:b64(blob.salt), iterations:blob.iter, hash:"SHA-256"},
+    base, {name:"AES-GCM", length:256}, false, ["decrypt"]);
+  const plain = await crypto.subtle.decrypt({name:"AES-GCM", iv:b64(blob.iv)}, key, b64(blob.ct));
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+async function unlock(pass){
+  $("gateErr").textContent = "正在解密… Decrypting…";
+  try { DATA = await decrypt(pass); }
+  catch(e){ $("gateErr").textContent = "口令不对，或数据还没生成。Wrong passphrase."; return; }
+  if ($("remember").checked) store.set("radar.pass", pass);
+  sessionStorage.setItem("radar.pass", pass);
+  $("gate").hidden = true; $("app").hidden = false;
+  $("updated").textContent = "更新于 " + fmtTime(DATA.generated_at) + " · " + DATA.jobs.length + " 个在招岗位";
+  buildFilters(); render(); pullTracker();
+}
+$("unlock").onclick = () => unlock($("pass").value);
+$("pass").onkeydown = e => { if (e.key === "Enter") unlock($("pass").value); };
+$("lock").onclick = () => { store.del("radar.pass"); sessionStorage.removeItem("radar.pass"); location.reload(); };
+const remembered = store.get("radar.pass") || sessionStorage.getItem("radar.pass");
+if (remembered){ $("remember").checked = !!store.get("radar.pass"); unlock(remembered); }
+
+// ── 工具 ───────────────────────────────────────────
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function fmtTime(iso){ if(!iso) return ""; const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString("zh-CN",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}); }
+function daysLeft(dl){ if(!dl) return null; return Math.ceil((new Date(dl+"T23:59:59") - new Date())/86400000); }
+function hourly(j){
+  if (j.salary_min == null) return null;
+  if (j.salary_period === "annual") return j.salary_min / 2080;
+  if (j.salary_period === "biweekly") return j.salary_min / 80;
+  if (j.salary_period === "monthly") return j.salary_min / 173;
+  return j.salary_min;
+}
+const item = uid => TRACK.items[uid] || (TRACK.items[uid] = {});
+
+// ── 筛选 ───────────────────────────────────────────
+function options(sel, values, anyZh, anyEn){
+  sel.innerHTML = `<option value="">${anyZh} ${anyEn}</option>` +
+    values.map(([v,l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
+}
+function buildFilters(){
+  const J = DATA.jobs;
+  const count = f => J.filter(f).length;
+  $("cats").innerHTML = CATS.map(([k,zh,en]) =>
+    `<button class="cat${state.cat===k?" on":""}" data-cat="${k}"><span>${zh}<span class="en">${en}</span></span><span class="count" data-count="${k}"></span></button>`).join("");
+  $("cats").onclick = e => { const b = e.target.closest(".cat"); if(!b) return; state.cat = b.dataset.cat; buildCats(); render(); };
+  $("fitChips").innerHTML = FITS.map(([k,zh,en]) => `<button class="chip" data-fit="${k}">${zh}<span class="en">${en}</span></button>`).join("");
+  $("fitChips").onclick = e => { const b = e.target.closest(".chip"); if(!b) return;
+    const k = b.dataset.fit; state.fits.has(k) ? state.fits.delete(k) : state.fits.add(k); b.classList.toggle("on"); render(); };
+  const uniq = key => [...new Set(J.map(key).filter(Boolean))].sort();
+  options($("city"), uniq(j => j.city).map(c => [c,c]), "全部城市", "All cities");
+  options($("employer"), uniq(j => j.employer).map(c => [c,c]), "全部雇主", "All employers");
+  const srcs = {}; J.forEach(j => srcs[j.source.zh] = j.source.zh + " · " + j.source.en);
+  options($("source"), Object.keys(srcs).sort().map(k => [k, srcs[k]]), "全部来源", "All sources");
+  options($("status"), STATUSES.slice(1).map(([v,zh,en]) => [v, zh + " " + en]), "全部", "All");
+  ["q","city","employer","source","salary","deadline","status"].forEach(id => $(id).oninput = render);
+  $("reset").onclick = () => { ["q","city","employer","source","salary","deadline","status"].forEach(id => $(id).value="");
+    state.fits.clear(); document.querySelectorAll("#fitChips .chip").forEach(c=>c.classList.remove("on")); state.cat="all"; buildCats(); render(); };
+  buildCats();
+}
+function buildCats(){
+  document.querySelectorAll("#cats .cat").forEach(b => b.classList.toggle("on", b.dataset.cat === state.cat));
+  const J = DATA.jobs;
+  const n = {all:J.length, pr:J.filter(j=>j.category==="pr").length, full:J.filter(j=>j.category==="full").length,
+    part:J.filter(j=>j.category==="part").length, saved:J.filter(j=>TRACK.items[j.uid]?.saved).length};
+  document.querySelectorAll("[data-count]").forEach(s => s.textContent = n[s.dataset.count] ?? "");
+}
+function visible(){
+  const q = $("q").value.trim().toLowerCase(), city = $("city").value, emp = $("employer").value,
+    src = $("source").value, sal = parseFloat($("salary").value), dl = $("deadline").value, st = $("status").value;
+  return DATA.jobs.filter(j => {
+    const t = TRACK.items[j.uid] || {};
+    if (state.cat === "saved" ? !t.saved : (state.cat !== "all" && j.category !== state.cat)) return false;
+    if (state.fits.size && !state.fits.has(j.fit)) return false;
+    if (city && j.city !== city) return false;
+    if (emp && j.employer !== emp) return false;
+    if (src && j.source.zh !== src) return false;
+    if (st && (t.status || "") !== st) return false;
+    if (!isNaN(sal)){ const h = hourly(j); if (h == null || h < sal) return false; }
+    if (dl){ const d = daysLeft(j.deadline);
+      if (dl === "open" ? (d != null && d < 0) : (d == null || d < 0 || d > +dl)) return false; }
+    if (q && !(j.title+" "+(j.employer||"")+" "+(j.city||"")+" "+j.excerpt).toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+// ── 渲染 ───────────────────────────────────────────
+function badges(j){
+  const b = [];
+  if (j.atp) b.push(`<span class="badge b-atp">★ ATP 双满足 · ATP match</span>`);
+  if (j.new_grad) b.push(`<span class="badge b-grad">应届 / 明年入职 · New grad</span>`);
+  if (j.fit === "strong") b.push(`<span class="badge b-strong">强对口 · Strong fit</span>`);
+  if (j.fit === "possible") b.push(`<span class="badge b-possible">可能对口 · Possible fit</span>`);
+  if (j.category === "part") b.push(`<span class="badge b-part">兼职 · Part-time</span>`);
+  return b.join("");
+}
+function resumeState(t){
+  const r = t.resume || {};
+  if (r.state === "requested") return "⏳ 已提交，Mac 空闲时生成（约 10 分钟）· Queued";
+  if (r.state === "working") return "✍️ 正在生成… · Writing";
+  if (r.state === "done") return "✅ 已生成：桌面「求职简历（中英文）/岗位定制」· Ready" + (r.folder ? "（" + esc(r.folder) + "）" : "");
+  if (r.state === "error") return "⚠️ 生成失败，可再点一次 · Failed, retry";
+  return "";
+}
+function card(j){
+  const t = TRACK.items[j.uid] || {};
+  const d = daysLeft(j.deadline);
+  const dlText = j.deadline ? (d < 0 ? "已过期 Expired" : `${j.deadline}（剩 ${d} 天）`) : "未公布 N/A";
+  const statusOpts = STATUSES.map(([v,zh,en]) => `<option value="${v}"${(t.status||"")===v?" selected":""}>${zh} · ${en}</option>`).join("");
+  const marks = (j.marks||[]).map(m => `<li>${esc(m.text)}</li>`).join("");
+  const ev = (j.fit_evidence||[]).map(x => `<li>${esc(x)}</li>`).join("");
+  return `<article class="card${t.saved?" saved":""}" data-uid="${esc(j.uid)}">
+    <div class="row1">
+      <div>
+        <h2 class="title"><a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a></h2>
+        <div class="meta">${esc(j.employer||"雇主未公布")} · ${esc(j.city||"地点未公布")}</div>
+      </div>
+      <button class="star${t.saved?" on":""}" data-act="save" aria-label="收藏 Save">${t.saved?"★":"☆"}</button>
+    </div>
+    <div class="badges">${badges(j)}</div>
+    <div class="facts">
+      <span><b>薪资 Pay</b>${esc(j.salary || "未公布 N/A")}</span>
+      <span><b>截止 Deadline</b>${esc(dlText)}</span>
+      ${j.noc && j.noc.code ? `<span><b>NOC</b>${esc(j.noc.code)} · TEER ${esc(j.noc.teer)}</span>` : ""}
+    </div>
+    <div class="source">来源 Source：<b>${esc(j.source.zh)}</b> · ${esc(j.source.en)} · <a href="${esc(j.url)}" target="_blank" rel="noopener">查看原文 Open posting ↗</a></div>
+    <details><summary>为什么推荐 / 注意事项 · Why & notes</summary>
+      ${ev ? `<ul class="marks">${ev}</ul>` : ""}<ul class="marks">${marks}</ul>
+      ${j.excerpt ? `<div class="excerpt">${esc(j.excerpt)}</div>` : ""}
+    </details>
+    <div class="track">
+      <select data-act="status" aria-label="投递进度 Status">${statusOpts}</select>
+      <button class="btn small" data-act="resume">📝 制作简历与求职信<span class="en">Tailor résumé</span></button>
+      <span class="resume-state">${resumeState(t)}</span>
+      <textarea data-act="note" placeholder="备注 Notes：联系人、面试时间…">${esc(t.note||"")}</textarea>
+    </div>
+  </article>`;
+}
+function render(){
+  if (!DATA) return;
+  const rows = visible();
+  $("summary").textContent = `显示 ${rows.length} / ${DATA.jobs.length} 个岗位 · Showing ${rows.length} of ${DATA.jobs.length}`;
+  $("list").innerHTML = rows.length ? rows.slice(0, 300).map(card).join("") :
+    `<div class="empty">没有符合条件的岗位<br><span class="hint">No jobs match these filters.</span></div>`;
+}
+$("toggleFilters").onclick = () => $("filters").classList.toggle("open");
+
+// ── 收藏 / 进度 / 备注 / 简历请求 ─────────────────────
+$("list").addEventListener("click", e => {
+  const el = e.target.closest("[data-act]"); if (!el) return;
+  const cardEl = el.closest(".card"); const uid = cardEl.dataset.uid;
+  const j = DATA.jobs.find(x => x.uid === uid); const t = item(uid);
+  remember(t, j);
+  if (el.dataset.act === "save"){ t.saved = !t.saved; if (t.saved && !t.status) t.status = "todo"; }
+  else if (el.dataset.act === "resume"){ t.saved = true; t.resume = {state:"requested", requested_at:new Date().toISOString()}; }
+  else return;
+  touch(); render(); buildCats();
+});
+$("list").addEventListener("change", e => {
+  const el = e.target.closest("[data-act=status]"); if (!el) return;
+  const uid = el.closest(".card").dataset.uid; const t = item(uid);
+  remember(t, DATA.jobs.find(x => x.uid === uid)); t.status = el.value; if (el.value) t.saved = true; touch(); buildCats();
+});
+$("list").addEventListener("input", e => {
+  const el = e.target.closest("[data-act=note]"); if (!el) return;
+  const uid = el.closest(".card").dataset.uid; const t = item(uid);
+  remember(t, DATA.jobs.find(x => x.uid === uid)); t.note = el.value; touch(true);
+});
+// 把岗位要点抄进追踪记录：岗位下架后看板里就没有它了，但投递记录还要能看懂
+function remember(t, j){ if (!j) return; t.title = j.title; t.employer = j.employer; t.city = j.city; t.url = j.url; t.source = j.source.zh; }
+
+// ── 同步（GitHub 私有仓库）──────────────────────────
+const token = () => store.get("radar.token");
+const api = () => `https://api.github.com/repos/${DATA.tracker.repo}/contents/${DATA.tracker.path}`;
+function setSync(msg){ $("updated").textContent = "更新于 " + fmtTime(DATA.generated_at) + " · " + DATA.jobs.length + " 个在招岗位 · " + msg; }
+async function pullTracker(){
+  const local = store.get("radar.tracker");
+  if (local){ try { TRACK = JSON.parse(local); } catch(e){} }
+  if (!token() || !DATA.tracker.repo){ setSync("未同步（点「同步设置」）Not synced"); render(); buildCats(); return; }
+  try {
+    const r = await fetch(api(), {headers:{Authorization:"Bearer "+token(), Accept:"application/vnd.github+json"}, cache:"no-store"});
+    if (r.status === 404){ SHA = null; setSync("已连接，首次同步 Connected"); render(); return; }
+    if (!r.ok) throw new Error(r.status);
+    const body = await r.json(); SHA = body.sha;
+    const remote = JSON.parse(decodeURIComponent(escape(atob(body.content.replace(/\n/g,"")))));
+    TRACK = merge(remote, TRACK);
+    store.set("radar.tracker", JSON.stringify(TRACK)); setSync("已同步 Synced");
+  } catch(e){ setSync("同步失败，稍后重试 Sync failed"); }
+  render(); buildCats();
+}
+// 两边都改过时：逐条取较新的那份（每条带 _t 时间戳）
+function merge(a, b){
+  const out = {items:{}};
+  const keys = new Set([...Object.keys(a.items||{}), ...Object.keys(b.items||{})]);
+  keys.forEach(k => { const x = (a.items||{})[k], y = (b.items||{})[k];
+    out.items[k] = !x ? y : !y ? x : ((y._t||"") > (x._t||"") ? y : x); });
+  return out;
+}
+let timer = null;
+// 改动先存本机，再延迟推到 GitHub（打字时不必每个字都提交一次）
+function touch(slow){
+  store.set("radar.tracker", JSON.stringify(TRACK));
+  clearTimeout(timer); timer = setTimeout(push, slow ? 1500 : 300);
+}
+async function push(){
+  if (!token() || !DATA.tracker.repo){ setSync("仅保存在本机（未设置同步）Saved locally"); return; }
+  for (let attempt = 0; attempt < 3; attempt++){
+    try {
+      const body = {message:"看板：更新收藏与投递进度", content:btoa(unescape(encodeURIComponent(JSON.stringify(TRACK, null, 1))))};
+      if (SHA) body.sha = SHA;
+      const r = await fetch(api(), {method:"PUT", headers:{Authorization:"Bearer "+token(), Accept:"application/vnd.github+json"}, body:JSON.stringify(body)});
+      if (r.status === 409 || r.status === 422){ await pullTracker(); continue; }   // 另一台设备刚改过：合并后重试
+      if (!r.ok) throw new Error(r.status);
+      SHA = (await r.json()).content.sha; setSync("已同步 Synced"); return;
+    } catch(e){ setSync("同步失败，已存本机 Sync failed, saved locally"); return; }
+  }
+}
+// 捕获阶段先给被改动的条目打时间戳（早于上面的处理函数），两台设备合并时以新者为准
+$("list").addEventListener("click", e => stamp(e), true);
+$("list").addEventListener("change", e => stamp(e), true);
+$("list").addEventListener("input", e => stamp(e), true);
+function stamp(e){ const c = e.target.closest(".card"); if (!c) return; const t = item(c.dataset.uid); t._t = new Date().toISOString(); }
+
+$("openSettings").onclick = () => { $("settings").hidden = false; $("token").value = token() || ""; };
+$("closeSettings").onclick = () => $("settings").hidden = true;
+$("clearToken").onclick = () => { store.del("radar.token"); $("token").value = ""; setSync("未同步 Not synced"); };
+$("saveToken").onclick = async () => {
+  const v = $("token").value.trim();
+  if (!v){ $("tokenErr").textContent = "请先粘贴令牌 Paste a token first"; return; }
+  store.set("radar.token", v); $("tokenErr").textContent = ""; $("settings").hidden = true; await pullTracker(); push();
+};
+})();
+</script>
+</body>
+</html>
