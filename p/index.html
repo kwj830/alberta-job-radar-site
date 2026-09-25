@@ -65,6 +65,7 @@ main .summary{color:var(--muted);font-size:15px;margin:2px 0 14px}
 .title a{color:inherit;text-decoration:none}
 .title a:hover{text-decoration:underline}
 .meta{color:var(--muted);margin-top:4px}
+.title-zh{font-size:15px;color:var(--muted);margin:2px 0 0;font-weight:400}
 .star{border:none;background:none;font-size:26px;line-height:1;cursor:pointer;color:var(--faint);padding:2px 4px}
 .star.on{color:var(--gold)}
 .badges{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px}
@@ -192,6 +193,13 @@ summary{cursor:pointer;color:var(--accent);font-size:15px}
       Saved jobs, status, notes and résumé requests sync through your private GitHub repo.</p>
     <input class="field" id="token" type="password" placeholder="github_pat_…" style="margin:10px 0">
     <div class="err" id="tokenErr"></div>
+    <div id="qrBox" hidden style="margin:6px 0 16px;padding:14px;border:1px solid var(--line);border-radius:14px">
+      <b>在手机上同步 · Sync your phone</b>
+      <p class="hint" style="margin:6px 0 10px">用 iPhone 相机扫下面的二维码 → 点弹出的链接 → 在 Safari 里输入看板口令。
+        手机会自动记住同步设置，不用再粘贴令牌。<b>别把这个二维码给别人看。</b><br>
+        Scan with your iPhone camera, open the link, enter your passphrase.</p>
+      <div id="qr" style="background:#fff;padding:10px;display:inline-block;border-radius:10px"></div>
+    </div>
     <div style="display:flex;gap:10px;justify-content:flex-end">
       <button class="btn" id="clearToken">清除 Clear</button>
       <button class="btn" id="closeSettings">关闭 Close</button>
@@ -200,6 +208,7 @@ summary{cursor:pointer;color:var(--accent);font-size:15px}
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 (() => {
 const $ = id => document.getElementById(id);
@@ -238,6 +247,15 @@ async function unlock(pass){
 $("unlock").onclick = () => unlock($("pass").value);
 $("pass").onkeydown = e => { if (e.key === "Enter") unlock($("pass").value); };
 $("lock").onclick = () => { store.del("radar.pass"); sessionStorage.removeItem("radar.pass"); location.reload(); };
+// 从电脑上扫码过来：把令牌存进这台设备，然后从地址栏抹掉
+function takeTokenFromHash(){
+  const m = location.hash.match(/[#&]t=([^&]+)/);
+  if (m){ store.set("radar.token", decodeURIComponent(m[1]));
+    history.replaceState(null, "", location.pathname + location.search);
+    if (DATA) pullTracker(); }
+}
+takeTokenFromHash();
+window.addEventListener("hashchange", takeTokenFromHash);
 const remembered = store.get("radar.pass") || sessionStorage.getItem("radar.pass");
 if (remembered){ $("remember").checked = !!store.get("radar.pass"); unlock(remembered); }
 
@@ -300,7 +318,7 @@ function visible(){
     if (!isNaN(sal)){ const h = hourly(j); if (h == null || h < sal) return false; }
     if (dl){ const d = daysLeft(j.deadline);
       if (dl === "open" ? (d != null && d < 0) : (d == null || d < 0 || d > +dl)) return false; }
-    if (q && !(j.title+" "+(j.employer||"")+" "+(j.city||"")+" "+j.excerpt).toLowerCase().includes(q)) return false;
+    if (q && !(j.title+" "+(j.title_zh||"")+" "+(j.employer||"")+" "+(j.place||j.city||"")+" "+j.excerpt).toLowerCase().includes(q)) return false;
     return true;
   });
 }
@@ -326,7 +344,9 @@ function resumeState(t){
 function card(j){
   const t = TRACK.items[j.uid] || {};
   const d = daysLeft(j.deadline);
-  const dlText = j.deadline ? (d < 0 ? "已过期 Expired" : `${j.deadline}（剩 ${d} 天）`) : "未公布 N/A";
+  const dlText = j.deadline ? (d < 0 ? "已过期 Expired" : `${j.deadline}（剩 ${d} 天）`)
+    : (j.deadline_note || "未公布 N/A");
+  const startText = j.start ? j.start.replace(/(\d{4})-(\d{2})/g, (m,y,mo) => `${y} 年 ${+mo} 月`) : "未写明 N/A";
   const statusOpts = STATUSES.map(([v,zh,en]) => `<option value="${v}"${(t.status||"")===v?" selected":""}>${zh} · ${en}</option>`).join("");
   const marks = (j.marks||[]).map(m => `<li>${esc(m.text)}</li>`).join("");
   const ev = (j.fit_evidence||[]).map(x => `<li>${esc(x)}</li>`).join("");
@@ -334,7 +354,8 @@ function card(j){
     <div class="row1">
       <div>
         <h2 class="title"><a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a></h2>
-        <div class="meta">${esc(j.employer||"雇主未公布")} · ${esc(j.city||"地点未公布")}</div>
+        ${j.title_zh ? `<div class="title-zh">${esc(j.title_zh)}</div>` : ""}
+        <div class="meta">${esc(j.employer||"雇主未公布")} · 📍 ${esc(j.place||j.city||"地点未公布 Location N/A")}</div>
       </div>
       <button class="star${t.saved?" on":""}" data-act="save" aria-label="收藏 Save">${t.saved?"★":"☆"}</button>
     </div>
@@ -342,6 +363,7 @@ function card(j){
     <div class="facts">
       <span><b>薪资 Pay</b>${esc(j.salary || "未公布 N/A")}</span>
       <span><b>截止 Deadline</b>${esc(dlText)}</span>
+      <span><b>入职 Start</b>${esc(startText)}</span>
       ${j.noc && j.noc.code ? `<span><b>NOC</b>${esc(j.noc.code)} · TEER ${esc(j.noc.teer)}</span>` : ""}
     </div>
     ${j.note ? `<div class="source" style="color:var(--ink)">💬 ${esc(j.note)}</div>` : ""}
@@ -443,7 +465,15 @@ $("list").addEventListener("change", e => stamp(e), true);
 $("list").addEventListener("input", e => stamp(e), true);
 function stamp(e){ const c = e.target.closest(".card"); if (!c) return; const t = item(c.dataset.uid); t._t = new Date().toISOString(); }
 
-$("openSettings").onclick = () => { $("settings").hidden = false; $("token").value = token() || ""; };
+$("openSettings").onclick = () => { $("settings").hidden = false; $("token").value = token() || ""; showQR(); };
+// 二维码里是「看板网址 + #t=令牌」。# 后面的部分浏览器不会发给任何服务器，
+// 手机打开后页面把令牌存进本机，并立刻从地址栏抹掉。
+function showQR(){
+  const t = token(); $("qrBox").hidden = !t; if (!t || !window.QRCode) return;
+  $("qr").innerHTML = "";
+  new QRCode($("qr"), {text: location.origin + location.pathname + "#t=" + encodeURIComponent(t),
+                       width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M});
+}
 $("closeSettings").onclick = () => $("settings").hidden = true;
 $("clearToken").onclick = () => { store.del("radar.token"); $("token").value = ""; setSync("未同步 Not synced"); };
 $("saveToken").onclick = async () => {
