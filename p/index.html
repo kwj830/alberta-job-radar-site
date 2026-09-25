@@ -435,7 +435,8 @@ $("list").addEventListener("input", e => {
 function remember(t, j){ if (!j) return; t.title = j.title; t.employer = j.employer; t.city = j.city; t.url = j.url; t.source = j.source.zh; }
 
 // ── 同步（GitHub 私有仓库）──────────────────────────
-const token = () => store.get("radar.token");
+// 本机手动设置的令牌优先；没有就用加密数据里自带的（口令解锁后才拿得到）
+const token = () => store.get("radar.token") || (DATA && DATA.tracker && DATA.tracker.token) || "";
 const api = () => `https://api.github.com/repos/${DATA.tracker.repo}/contents/${DATA.tracker.path}`;
 function setSync(msg){ $("updated").textContent = "更新于 " + fmtTime(DATA.generated_at) + " · " + DATA.jobs.length + " 个在招岗位 · " + msg; }
 async function pullTracker(){
@@ -450,6 +451,8 @@ async function pullTracker(){
     const remote = JSON.parse(decodeURIComponent(escape(atob(body.content.replace(/\n/g,"")))));
     TRACK = merge(remote, TRACK);
     store.set("radar.tracker", JSON.stringify(TRACK)); setSync("已同步 Synced");
+    // 本机有云端没有的改动（比如之前没设置同步时存下的收藏）→ 补推上去
+    if (JSON.stringify(TRACK.items) !== JSON.stringify(remote.items || {})) push();
   } catch(e){ setSync("同步失败，稍后重试 Sync failed"); }
   render(); buildCats();
 }
