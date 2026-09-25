@@ -142,6 +142,12 @@ summary{cursor:pointer;color:var(--accent);font-size:15px}
       <h3>分类 <span class="en">Category</span></h3>
       <div class="cats" id="cats"></div>
 
+      <h3>排序 <span class="en">Sort</span></h3>
+      <select class="field" id="sort">
+        <option value="">推荐顺序 Recommended</option>
+        <option value="deadline">截止日期最近在前 Deadline soonest</option>
+      </select>
+
       <h3>关键词 <span class="en">Keyword</span></h3>
       <input class="field" id="q" placeholder="职位、雇主、技能… Title, employer, skill">
 
@@ -295,6 +301,9 @@ function buildFilters(){
   options($("source"), Object.keys(srcs).sort().map(k => [k, srcs[k]]), "全部来源", "All sources");
   options($("status"), STATUSES.slice(1).map(([v,zh,en]) => [v, zh + " " + en]), "全部", "All");
   ["q","city","employer","source","salary","deadline","status"].forEach(id => $(id).oninput = render);
+  // 排序是个人习惯，不随「清空筛选」重置；记在本机，切换分类时保持不变
+  $("sort").value = store.get("radar_sort") || "";
+  $("sort").oninput = () => { store.set("radar_sort", $("sort").value); render(); };
   $("reset").onclick = () => { ["q","city","employer","source","salary","deadline","status"].forEach(id => $(id).value="");
     state.fits.clear(); document.querySelectorAll("#fitChips .chip").forEach(c=>c.classList.remove("on")); state.cat="all"; buildCats(); render(); };
   buildCats();
@@ -384,9 +393,17 @@ function card(j){
     </div>
   </article>`;
 }
+// 「截止日期最近在前」：还没截止的按剩余天数升序；没写截止日期的排在后面（保持推荐顺序）；
+// 已过期的放最后。同组内用原下标保持推荐顺序（Array.sort 在旧 Safari 上不保证稳定）。
+function sortRows(rows){
+  if ($("sort").value !== "deadline") return rows;
+  const key = j => { const d = daysLeft(j.deadline); return d == null ? [1, 0] : d < 0 ? [2, -d] : [0, d]; };
+  return rows.map((j, i) => [key(j), i, j])
+    .sort((a, b) => a[0][0] - b[0][0] || a[0][1] - b[0][1] || a[1] - b[1]).map(x => x[2]);
+}
 function render(){
   if (!DATA) return;
-  const rows = visible();
+  const rows = sortRows(visible());
   $("summary").textContent = `显示 ${rows.length} / ${DATA.jobs.length} 个岗位 · Showing ${rows.length} of ${DATA.jobs.length}`;
   $("list").innerHTML = rows.length ? rows.slice(0, 300).map(card).join("") :
     `<div class="empty">没有符合条件的岗位<br><span class="hint">No jobs match these filters.</span></div>`;
