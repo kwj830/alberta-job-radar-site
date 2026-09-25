@@ -72,6 +72,8 @@ main .summary{color:var(--muted);font-size:15px;margin:2px 0 14px}
 .badge{font-size:13px;border-radius:999px;padding:3px 10px;font-weight:600}
 .b-atp{background:var(--gold-soft);color:var(--gold)}
 .b-grad{background:var(--blue-soft);color:var(--blue)}
+.b-early{background:#fbe3e0;color:#b3261e}
+.why{display:block;font-size:.82em;color:var(--muted,#8a8378);font-weight:400;margin-top:2px}
 .b-strong{background:var(--accent-soft);color:var(--accent)}
 .b-possible{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
 .b-part{background:var(--rose-soft);color:var(--rose)}
@@ -327,6 +329,7 @@ function visible(){
 function badges(j){
   const b = [];
   if (j.atp) b.push(`<span class="badge b-atp">★ ATP 双满足 · ATP match</span>`);
+  if (j.early_start) b.push(`<span class="badge b-early">🔴 入职早于毕业（${esc(j.early_start.replace(/(\d{4})-(\d{2})/, (m,y,mo) => y+" 年 "+(+mo)+" 月"))} 入职）· Starts before you graduate</span>`);
   if (j.new_grad) b.push(`<span class="badge b-grad">应届 / 明年入职 · New grad</span>`);
   if (j.fit === "strong") b.push(`<span class="badge b-strong">强对口 · Strong fit</span>`);
   if (j.fit === "possible") b.push(`<span class="badge b-possible">可能对口 · Possible fit</span>`);
@@ -345,7 +348,8 @@ function card(j){
   const t = TRACK.items[j.uid] || {};
   const d = daysLeft(j.deadline);
   const dlText = j.deadline ? (d < 0 ? "已过期 Expired" : `${j.deadline}（剩 ${d} 天）`)
-    : (j.deadline_note || "未公布 N/A");
+    : (j.deadline_note || "未写明 N/A");
+  const why = k => (j.missing && j.missing[k]) ? `<span class="why">${esc(j.missing[k])}</span>` : "";
   const startText = j.start ? j.start.replace(/(\d{4})-(\d{2})/g, (m,y,mo) => `${y} 年 ${+mo} 月`) : "未写明 N/A";
   const statusOpts = STATUSES.map(([v,zh,en]) => `<option value="${v}"${(t.status||"")===v?" selected":""}>${zh} · ${en}</option>`).join("");
   const marks = (j.marks||[]).map(m => `<li>${esc(m.text)}</li>`).join("");
@@ -355,15 +359,15 @@ function card(j){
       <div>
         <h2 class="title"><a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a></h2>
         ${j.title_zh ? `<div class="title-zh">${esc(j.title_zh)}</div>` : ""}
-        <div class="meta">${esc(j.employer||"雇主未公布")} · 📍 ${esc(j.place||j.city||"地点未公布 Location N/A")}</div>
+        <div class="meta">${esc(j.employer||"雇主未写明")} · 📍 ${esc(j.place||j.city||"地点未写明 Location N/A")}${why("place")}</div>
       </div>
       <button class="star${t.saved?" on":""}" data-act="save" aria-label="收藏 Save">${t.saved?"★":"☆"}</button>
     </div>
     <div class="badges">${badges(j)}</div>
     <div class="facts">
-      <span><b>薪资 Pay</b>${esc(j.salary || "未公布 N/A")}</span>
-      <span><b>截止 Deadline</b>${esc(dlText)}</span>
-      <span><b>入职 Start</b>${esc(startText)}</span>
+      <span><b>薪资 Pay</b>${esc(j.salary || "未写明 N/A")}${why("salary")}</span>
+      <span><b>截止 Deadline</b>${esc(dlText)}${j.deadline ? "" : why("deadline")}</span>
+      <span><b>入职 Start</b>${esc(startText)}${why("start")}</span>
       ${j.noc && j.noc.code ? `<span><b>NOC</b>${esc(j.noc.code)} · TEER ${esc(j.noc.teer)}</span>` : ""}
     </div>
     ${j.note ? `<div class="source" style="color:var(--ink)">💬 ${esc(j.note)}</div>` : ""}
