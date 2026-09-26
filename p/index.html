@@ -451,8 +451,9 @@ function appliedRows(){
 // 点来信 → 在 Gmail 里按邮件编号打开原信
 function mailLink(m){
   if (!m.msgid) return "";
-  const box = (DATA.tracker && DATA.tracker.mailbox) || "0";
-  return `https://mail.google.com/mail/u/${encodeURIComponent(box)}/#search/rfc822msgid%3A${encodeURIComponent(m.msgid)}`;
+  // authuser= 按邮箱地址选账号（/u/地址/ 这种写法 Gmail 会报 404，2026-09-26 实测）
+  const box = (DATA.tracker && DATA.tracker.mailbox) || "";
+  return `https://mail.google.com/mail/${box ? "?authuser=" + encodeURIComponent(box) : "u/0/"}#search/rfc822msgid%3A${encodeURIComponent(m.msgid)}`;
 }
 function mailHtml(k, m){
   const d = m.date ? fmtTime(m.date) : "", link = mailLink(m);
@@ -584,11 +585,13 @@ function merge(a, b){
   const ma = a.mail || {}, mb = b.mail || {};
   new Set([...Object.keys(ma), ...Object.keys(mb)]).forEach(k => {
     const x = ma[k], y = mb[k]; if (!x || !y){ out.mail[k] = x || y; return; }
-    const m = Object.assign({}, x, y);
+    // 来信内容只由云端监控写：内容以云端（a）为准，本机旧缓存不能把它覆盖回去
+    const m = Object.assign({}, y, x);
     m.seen_at = x.seen_at || y.seen_at;
     m.ignored = ((y._t||"") >= (x._t||"") ? y : x).ignored;   // 隐藏/恢复：以最后一次操作为准
     m.rings = (x.rings||[]).length >= (y.rings||[]).length ? x.rings : y.rings;
-    m.pushed_at = x.pushed_at || y.pushed_at; out.mail[k] = m; });
+    m.pushed_at = x.pushed_at || y.pushed_at;
+    m._t = (y._t||"") > (x._t||"") ? y._t : x._t; out.mail[k] = m; });
   return out;
 }
 let timer = null;
