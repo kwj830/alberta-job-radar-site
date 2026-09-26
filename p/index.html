@@ -90,15 +90,20 @@ summary{cursor:pointer;color:var(--accent);font-size:15px}
 .track select{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:7px 10px}
 .track textarea{flex:1 1 100%;min-height:44px;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:9px 12px;resize:vertical}
 .resume-state{font-size:14px;color:var(--muted)}
-.mailbar{display:block;width:100%;text-align:left;background:#fbe3e0;color:#b3261e;border:1px solid #f0b8b1;border-radius:14px;
+.mailbar{display:block;width:100%;text-align:left;background:rgba(224,100,90,.14);color:#e0645a;border:1px solid rgba(224,100,90,.5);border-radius:14px;
   padding:12px 16px;margin:0 0 14px;font-weight:650;cursor:pointer;font-size:15px}
 .mail{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px;font-size:14px}
-.mail.new{border-color:#e0645a;background:#fdf1ef;box-shadow:0 0 0 2px #f6c9c3}
+.mail.new{border-color:#e0645a;background:rgba(224,100,90,.10);box-shadow:0 0 0 2px rgba(224,100,90,.35)}
 .mail .k{font-weight:700;margin-right:6px}
 .mail .k-reject{color:#8a8378}.mail .k-interview,.mail .k-offer{color:#2f6f5e}.mail .k-receipt{color:#4a6fa5}
 .mail .sub{font-weight:600;color:var(--ink)}
 .mail .snip{color:var(--muted);margin-top:4px;white-space:pre-wrap}
-.mail .tools{margin-top:6px;display:flex;gap:8px}
+.mail .tools{margin-top:6px;display:flex;gap:8px;align-items:center}
+.mail.open{cursor:pointer}
+.mail.open:hover{border-color:var(--accent)}
+.mail .go{font-size:13px;color:var(--accent);font-weight:600}
+.hidden-mail{font-size:13px;color:var(--muted);margin-top:8px}
+.hidden-mail button{border:none;background:none;color:var(--accent);cursor:pointer;padding:0;font-size:13px}
 .appmeta{display:flex;gap:18px;flex-wrap:wrap;font-size:15px;margin-top:10px}
 .appmeta b{color:var(--muted);font-weight:500;margin-right:4px}
 .track input.tl{flex:1 1 260px;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:7px 10px}
@@ -299,7 +304,7 @@ function hourly(j){
 }
 const item = uid => TRACK.items[uid] || (TRACK.items[uid] = {});
 const appliedUids = () => Object.keys(TRACK.items).filter(u => APPLIED.includes(TRACK.items[u].status));
-const mailOf = uid => Object.entries(TRACK.mail || {}).filter(([k,m]) => m.uid === uid && !m.ignored)
+const mailOf = (uid, hidden) => Object.entries(TRACK.mail || {}).filter(([k,m]) => m.uid === uid && !!m.ignored === !!hidden)
   .sort((a,b) => (b[1].date||"").localeCompare(a[1].date||""));
 const unseenMail = () => Object.entries(TRACK.mail || {}).filter(([k,m]) => !m.seen_at && !m.ignored);
 function mailBar(){
@@ -443,15 +448,22 @@ function appliedRows(){
       const ua = mailOf(a.uid).some(([k,m]) => !m.seen_at), ub = mailOf(b.uid).some(([k,m]) => !m.seen_at);
       return (ub - ua) || (TRACK.items[b.uid].applied_at||"").localeCompare(TRACK.items[a.uid].applied_at||""); });
 }
+// 点来信 → 在 Gmail 里按邮件编号打开原信
+function mailLink(m){
+  if (!m.msgid) return "";
+  const box = (DATA.tracker && DATA.tracker.mailbox) || "0";
+  return `https://mail.google.com/mail/u/${encodeURIComponent(box)}/#search/rfc822msgid%3A${encodeURIComponent(m.msgid)}`;
+}
 function mailHtml(k, m){
-  const d = m.date ? fmtTime(m.date) : "";
-  return `<div class="mail${m.seen_at?"":" new"}" data-mail="${esc(k)}">
+  const d = m.date ? fmtTime(m.date) : "", link = mailLink(m);
+  return `<div class="mail${m.seen_at?"":" new"}${link?" open":""}" data-mail="${esc(k)}"${link?` data-link="${esc(link)}" title="点开在邮箱里看原信"`:""}>
     <div><span class="k k-${esc(m.kind)}">${m.seen_at?"":"🔴 "}${esc(KIND_ZH[m.kind]||"新消息")}</span>
       <span class="sub">${esc(m.subject)}</span></div>
     <div class="hint">${esc(m.from)} · ${esc(d)}${m.folder?" · ⚠️ 在"+esc(m.folder)+"里":""}</div>
     ${m.snippet ? `<div class="snip">${esc(m.snippet)}</div>` : ""}
     ${m.timeline ? `<div class="hint">⏱ 邮件里写的回复时间：${esc(m.timeline)}</div>` : ""}
-    <div class="tools"><button class="btn small" data-act="notmail">不是雇主来信 Not related</button></div>
+    <div class="tools">${link?`<span class="go">📨 点这里在邮箱里看全文 ↗</span>`:""}
+      <button class="btn small" data-act="notmail" title="系统认错了：这封其实不是这家公司关于你申请的来信">认错了，隐藏这封</button></div>
   </div>`;
 }
 function appliedCard(j){
@@ -468,10 +480,11 @@ function appliedCard(j){
     </div></div>
     <div class="appmeta">
       <span><b>投递日期 Applied</b>${t.applied_at ? esc(t.applied_at.slice(0,10)) : "未记录"}</span>
-      <span><b>来信 Emails</b>${mails.length ? mails.length + " 封" + (mails.some(([k,m])=>!m.seen_at) ? "（有未读）" : "") : "还没有 None yet"}</span>
-      <span><b>公司说明的回复时间 Stated timeline</b>${esc(tl || hint || "未说明 Not stated")}</span>
+      <span><b>公司来信 Emails</b>${mails.length ? mails.length + " 封" + (mails.some(([k,m])=>!m.seen_at) ? "（有没看过的）" : "") : "还没有 None yet"}</span>
+      <span><b>公司说多久回复 Reply time</b>${esc(tl || hint || "没说 Not stated")}</span>
     </div>
     ${mails.map(([k,m]) => mailHtml(k, m)).join("")}
+    ${(h => h.length ? `<div class="hidden-mail">已隐藏 ${h.length} 封（你标过「认错了」）· <button data-act="unhide">恢复显示</button></div>` : "")(mailOf(j.uid, true))}
     <div class="track">
       <select data-act="status" aria-label="投递进度 Status">${statusOpts}</select>
       <input class="tl" data-act="timeline" placeholder="回复时间（招聘页/邮件里写的，如「2–3 周内」）" value="${esc(t.timeline||"")}">
@@ -505,8 +518,13 @@ $("toggleFilters").onclick = () => $("filters").classList.toggle("open");
 
 // ── 收藏 / 进度 / 备注 / 简历请求 ─────────────────────
 $("list").addEventListener("click", e => {
-  const el = e.target.closest("[data-act]"); if (!el) return;
+  const el = e.target.closest("[data-act]");
+  if (!el){ const box = e.target.closest(".mail[data-link]");   // 点来信本身 → 打开邮箱原信
+    if (box && !e.target.closest("a")) window.open(box.dataset.link, "_blank", "noopener"); return; }
+  if (el.dataset.act === "unhide"){ const uid = el.closest(".card").dataset.uid, now = new Date().toISOString();
+    mailOf(uid, true).forEach(([k,m]) => { delete m.ignored; m._t = now; }); touch(); render(); buildCats(); return; }
   if (el.dataset.act === "notmail"){ const k = el.closest(".mail").dataset.mail, m = TRACK.mail[k];
+    if (!confirm("确定这封不是这家公司关于你申请的来信吗？\n隐藏后不再提醒，可以在卡片下方「恢复显示」。")) return;
     m.ignored = true; m.seen_at = m.seen_at || new Date().toISOString(); m._t = new Date().toISOString();
     touch(); render(); buildCats(); return; }
   const cardEl = el.closest(".card"); const uid = cardEl.dataset.uid;
@@ -567,7 +585,8 @@ function merge(a, b){
   new Set([...Object.keys(ma), ...Object.keys(mb)]).forEach(k => {
     const x = ma[k], y = mb[k]; if (!x || !y){ out.mail[k] = x || y; return; }
     const m = Object.assign({}, x, y);
-    m.seen_at = x.seen_at || y.seen_at; m.ignored = x.ignored || y.ignored;
+    m.seen_at = x.seen_at || y.seen_at;
+    m.ignored = ((y._t||"") >= (x._t||"") ? y : x).ignored;   // 隐藏/恢复：以最后一次操作为准
     m.rings = (x.rings||[]).length >= (y.rings||[]).length ? x.rings : y.rings;
     m.pushed_at = x.pushed_at || y.pushed_at; out.mail[k] = m; });
   return out;
