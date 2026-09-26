@@ -595,7 +595,10 @@ function merge(a, b){
   const out = {items:{}};
   const keys = new Set([...Object.keys(a.items||{}), ...Object.keys(b.items||{})]);
   keys.forEach(k => { const x = (a.items||{})[k], y = (b.items||{})[k];
-    out.items[k] = !x ? y : !y ? x : ((y._t||"") > (x._t||"") ? y : x); });
+    // 以较新的为准，但较旧那份独有的内容保留（别的设备/云端刚补上的字段不会被冲掉）
+    if (!x || !y){ out.items[k] = x || y; return; }
+    const newer = (y._t||"") > (x._t||"") ? y : x, older = newer === y ? x : y;
+    out.items[k] = Object.assign({}, older, newer); });
   // 来信由云端监控写入、看板只改「已读/忽略」：逐封合并，已读和响铃记录取并集
   out.mail = {};
   const ma = a.mail || {}, mb = b.mail || {};
