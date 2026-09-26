@@ -102,6 +102,8 @@ summary{cursor:pointer;color:var(--accent);font-size:15px}
 .mail.open{cursor:pointer}
 .mail.open:hover{border-color:var(--accent)}
 .mail .go{font-size:13px;color:var(--accent);font-weight:600}
+.jobinfo{margin-top:10px}
+.joblink{display:inline-block;margin-top:10px;text-decoration:none;color:var(--accent)}
 .mail.hid{display:flex;justify-content:space-between;align-items:center;gap:10px;border-style:dashed;color:var(--muted);padding:8px 12px}
 .mail.hid .sub{color:var(--muted);font-weight:500}
 .appmeta{display:flex;gap:18px;flex-wrap:wrap;font-size:15px;margin-top:10px}
@@ -442,8 +444,9 @@ function sortRows(rows){
 // 「已投递」：岗位下架后看板数据里就没有它了，用投递时抄下的要点补上
 function appliedRows(){
   const byUid = {}; DATA.jobs.forEach(j => byUid[j.uid] = j);
-  return appliedUids().map(uid => byUid[uid] || {uid, title:TRACK.items[uid].title||uid, employer:TRACK.items[uid].employer,
-      city:TRACK.items[uid].city, url:TRACK.items[uid].url, source:{zh:TRACK.items[uid].source||"", en:""}, _gone:true})
+  return appliedUids().map(uid => { const t = TRACK.items[uid];
+      return byUid[uid] || {uid, title:t.title||uid, title_zh:t.title_zh, employer:t.employer, city:t.city, place:t.place,
+        url:t.url, salary:t.salary, deadline:t.deadline, excerpt:t.excerpt, source:{zh:t.source||"", en:""}, _gone:true}; })
     .sort((a,b) => {  // 有未读来信的排最前，其余按投递日期新→旧
       const ua = mailOf(a.uid).some(([k,m]) => !m.seen_at), ub = mailOf(b.uid).some(([k,m]) => !m.seen_at);
       return (ub - ua) || (TRACK.items[b.uid].applied_at||"").localeCompare(TRACK.items[a.uid].applied_at||""); });
@@ -488,6 +491,13 @@ function appliedCard(j){
       <span><b>公司来信 Emails</b>${mails.length ? mails.length + " 封" + (mails.some(([k,m])=>!m.seen_at) ? "（有没看过的）" : "") : "还没有 None yet"}</span>
       <span><b>公司说多久回复 Reply time</b>${esc(tl || hint || "没说 Not stated")}</span>
     </div>
+    <details class="jobinfo"><summary>📄 岗位简介 Job summary</summary>
+      <div class="facts">${j.salary ? `<span><b>薪资 Pay</b>${esc(j.salary)}</span>` : ""}
+        ${j.deadline ? `<span><b>截止 Deadline</b>${esc(j.deadline)}</span>` : ""}</div>
+      ${j.note ? `<div class="source" style="color:var(--ink)">💬 ${esc(j.note)}</div>` : ""}
+      <div class="excerpt">${esc(j.excerpt || "（没有存下简介，点右边按钮看原文）")}</div>
+    </details>
+    ${j.url ? `<a class="btn small joblink" href="${esc(j.url)}" target="_blank" rel="noopener">🔗 查看岗位原文 Open posting ↗</a>` : ""}
     ${shown.map(([k,m]) => mailHtml(k, m)).join("")}
     <div class="track">
       <select data-act="status" aria-label="投递进度 Status">${statusOpts}</select>
@@ -552,7 +562,10 @@ $("list").addEventListener("input", e => {
 });
 // 把岗位要点抄进追踪记录：岗位下架后看板里就没有它了，但投递记录还要能看懂
 function remember(t, j){ if (!j || j._gone) return; t.title = j.title; t.employer = j.employer; t.city = j.city; t.url = j.url; t.source = j.source.zh;
-  if (j.response_time) t.response_time = j.response_time; }   // 岗位下架后「公司说多久回复」还在
+  if (j.response_time) t.response_time = j.response_time;
+  // 岗位简介也抄一份：投得多了记不住细节，岗位下架后也要能查
+  if (j.excerpt) t.excerpt = j.excerpt.slice(0, 900); if (j.title_zh) t.title_zh = j.title_zh;
+  if (j.salary) t.salary = j.salary; if (j.deadline) t.deadline = j.deadline; if (j.place) t.place = j.place; }   // 岗位下架后「公司说多久回复」还在
 
 // ── 同步（GitHub 私有仓库）──────────────────────────
 // 本机手动设置的令牌优先；没有就用加密数据里自带的（口令解锁后才拿得到）
