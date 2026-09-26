@@ -102,8 +102,8 @@ summary{cursor:pointer;color:var(--accent);font-size:15px}
 .mail.open{cursor:pointer}
 .mail.open:hover{border-color:var(--accent)}
 .mail .go{font-size:13px;color:var(--accent);font-weight:600}
-.hidden-mail{font-size:13px;color:var(--muted);margin-top:8px}
-.hidden-mail button{border:none;background:none;color:var(--accent);cursor:pointer;padding:0;font-size:13px}
+.mail.hid{display:flex;justify-content:space-between;align-items:center;gap:10px;border-style:dashed;color:var(--muted);padding:8px 12px}
+.mail.hid .sub{color:var(--muted);font-weight:500}
 .appmeta{display:flex;gap:18px;flex-wrap:wrap;font-size:15px;margin-top:10px}
 .appmeta b{color:var(--muted);font-weight:500;margin-right:4px}
 .track input.tl{flex:1 1 260px;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:7px 10px}
@@ -456,6 +456,9 @@ function mailLink(m){
   return `https://mail.google.com/mail/${box ? "?authuser=" + encodeURIComponent(box) : "u/0/"}#search/rfc822msgid%3A${encodeURIComponent(m.msgid)}`;
 }
 function mailHtml(k, m){
+  if (m.ignored) return `<div class="mail hid" data-mail="${esc(k)}">
+    <span>🙈 已隐藏：<span class="sub">${esc(m.subject)}</span></span>
+    <button class="btn small" data-act="unhide">恢复 Restore</button></div>`;
   const d = m.date ? fmtTime(m.date) : "", link = mailLink(m);
   return `<div class="mail${m.seen_at?"":" new"}${link?" open":""}" data-mail="${esc(k)}"${link?` data-link="${esc(link)}" title="点开在邮箱里看原信"`:""}>
     <div><span class="k k-${esc(m.kind)}">${m.seen_at?"":"🔴 "}${esc(KIND_ZH[m.kind]||"新消息")}</span>
@@ -464,12 +467,13 @@ function mailHtml(k, m){
     ${m.snippet ? `<div class="snip">${esc(m.snippet)}</div>` : ""}
     ${m.timeline ? `<div class="hint">⏱ 邮件里写的回复时间：${esc(m.timeline)}</div>` : ""}
     <div class="tools">${link?`<span class="go">📨 点这里在邮箱里看全文 ↗</span>`:""}
-      <button class="btn small" data-act="notmail" title="系统认错了：这封其实不是这家公司关于你申请的来信">认错了，隐藏这封</button></div>
+      <button class="btn small" data-act="notmail" title="系统认错了：这封其实不是这家公司关于你申请的来信">隐藏 Hide</button></div>
   </div>`;
 }
 function appliedCard(j){
   const t = TRACK.items[j.uid] || {};
-  const mails = mailOf(j.uid);
+  const mails = mailOf(j.uid), shown = mails.concat(mailOf(j.uid, true))   // 隐藏的也留在原位，折叠成一行
+    .sort((a,b) => (b[1].date||"").localeCompare(a[1].date||""));
   const statusOpts = STATUSES.map(([v,zh,en]) => `<option value="${v}"${(t.status||"")===v?" selected":""}>${zh} · ${en}</option>`).join("");
   const hint = (mails.find(([k,m]) => m.timeline) || [0,{}])[1].timeline;
   const tl = t.timeline || j.response_time || "";
@@ -484,8 +488,7 @@ function appliedCard(j){
       <span><b>公司来信 Emails</b>${mails.length ? mails.length + " 封" + (mails.some(([k,m])=>!m.seen_at) ? "（有没看过的）" : "") : "还没有 None yet"}</span>
       <span><b>公司说多久回复 Reply time</b>${esc(tl || hint || "没说 Not stated")}</span>
     </div>
-    ${mails.map(([k,m]) => mailHtml(k, m)).join("")}
-    ${(h => h.length ? `<div class="hidden-mail">已隐藏 ${h.length} 封（你标过「认错了」）· <button data-act="unhide">恢复显示</button></div>` : "")(mailOf(j.uid, true))}
+    ${shown.map(([k,m]) => mailHtml(k, m)).join("")}
     <div class="track">
       <select data-act="status" aria-label="投递进度 Status">${statusOpts}</select>
       <input class="tl" data-act="timeline" placeholder="回复时间（招聘页/邮件里写的，如「2–3 周内」）" value="${esc(t.timeline||"")}">
@@ -522,10 +525,9 @@ $("list").addEventListener("click", e => {
   const el = e.target.closest("[data-act]");
   if (!el){ const box = e.target.closest(".mail[data-link]");   // 点来信本身 → 打开邮箱原信
     if (box && !e.target.closest("a")) window.open(box.dataset.link, "_blank", "noopener"); return; }
-  if (el.dataset.act === "unhide"){ const uid = el.closest(".card").dataset.uid, now = new Date().toISOString();
-    mailOf(uid, true).forEach(([k,m]) => { delete m.ignored; m._t = now; }); touch(); render(); buildCats(); return; }
+  if (el.dataset.act === "unhide"){ const m = TRACK.mail[el.closest(".mail").dataset.mail];
+    m.ignored = false; m._t = new Date().toISOString(); touch(); render(); buildCats(); return; }
   if (el.dataset.act === "notmail"){ const k = el.closest(".mail").dataset.mail, m = TRACK.mail[k];
-    if (!confirm("确定这封不是这家公司关于你申请的来信吗？\n隐藏后不再提醒，可以在卡片下方「恢复显示」。")) return;
     m.ignored = true; m.seen_at = m.seen_at || new Date().toISOString(); m._t = new Date().toISOString();
     touch(); render(); buildCats(); return; }
   const cardEl = el.closest(".card"); const uid = cardEl.dataset.uid;
