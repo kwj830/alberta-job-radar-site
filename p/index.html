@@ -476,7 +476,7 @@ function appliedCard(j){
     .sort((a,b) => (b[1].date||"").localeCompare(a[1].date||""));
   const statusOpts = STATUSES.map(([v,zh,en]) => `<option value="${v}"${(t.status||"")===v?" selected":""}>${zh} · ${en}</option>`).join("");
   const hint = (mails.find(([k,m]) => m.timeline) || [0,{}])[1].timeline;
-  const tl = t.timeline || j.response_time || "";
+  const tl = t.timeline || j.response_time || t.response_time || "";
   return `<article class="card saved" data-uid="${esc(j.uid)}">
     <div class="row1"><div>
       <h2 class="title">${j.url ? `<a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>` : esc(j.title)}</h2>
@@ -551,7 +551,8 @@ $("list").addEventListener("input", e => {
   remember(t, DATA.jobs.find(x => x.uid === uid)); t[el.dataset.act] = el.value; touch(true);
 });
 // 把岗位要点抄进追踪记录：岗位下架后看板里就没有它了，但投递记录还要能看懂
-function remember(t, j){ if (!j || j._gone) return; t.title = j.title; t.employer = j.employer; t.city = j.city; t.url = j.url; t.source = j.source.zh; }
+function remember(t, j){ if (!j || j._gone) return; t.title = j.title; t.employer = j.employer; t.city = j.city; t.url = j.url; t.source = j.source.zh;
+  if (j.response_time) t.response_time = j.response_time; }   // 岗位下架后「公司说多久回复」还在
 
 // ── 同步（GitHub 私有仓库）──────────────────────────
 // 本机手动设置的令牌优先；没有就用加密数据里自带的（口令解锁后才拿得到）
