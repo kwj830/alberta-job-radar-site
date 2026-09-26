@@ -90,6 +90,20 @@ summary{cursor:pointer;color:var(--accent);font-size:15px}
 .track select{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:7px 10px}
 .track textarea{flex:1 1 100%;min-height:44px;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:9px 12px;resize:vertical}
 .resume-state{font-size:14px;color:var(--muted)}
+.mailbar{display:block;width:100%;text-align:left;background:#fbe3e0;color:#b3261e;border:1px solid #f0b8b1;border-radius:14px;
+  padding:12px 16px;margin:0 0 14px;font-weight:650;cursor:pointer;font-size:15px}
+.mail{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px;font-size:14px}
+.mail.new{border-color:#e0645a;background:#fdf1ef;box-shadow:0 0 0 2px #f6c9c3}
+.mail .k{font-weight:700;margin-right:6px}
+.mail .k-reject{color:#8a8378}.mail .k-interview,.mail .k-offer{color:#2f6f5e}.mail .k-receipt{color:#4a6fa5}
+.mail .sub{font-weight:600;color:var(--ink)}
+.mail .snip{color:var(--muted);margin-top:4px;white-space:pre-wrap}
+.mail .tools{margin-top:6px;display:flex;gap:8px}
+.appmeta{display:flex;gap:18px;flex-wrap:wrap;font-size:15px;margin-top:10px}
+.appmeta b{color:var(--muted);font-weight:500;margin-right:4px}
+.track input.tl{flex:1 1 260px;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:7px 10px}
+.cat .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#e0645a;margin-left:6px;vertical-align:middle}
+
 .empty{text-align:center;color:var(--muted);padding:60px 20px}
 .gate{max-width:440px;margin:12vh auto;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:34px;box-shadow:var(--shadow)}
 .gate h1{font-size:26px}
@@ -187,6 +201,7 @@ summary{cursor:pointer;color:var(--accent);font-size:15px}
     </aside>
 
     <main>
+      <div id="mailbar"></div>
       <div class="summary" id="summary"></div>
       <div id="list"></div>
     </main>
@@ -223,7 +238,10 @@ const $ = id => document.getElementById(id);
 const STATUSES = [["", "未开始", "Not started"], ["todo", "待投", "To apply"], ["applied", "已投", "Applied"],
   ["interview", "面试", "Interview"], ["offer", "Offer", "Offer"], ["rejected", "拒绝", "Rejected"]];
 const CATS = [["all", "全部", "All"], ["pr", "PR 优选", "PR priority"], ["full", "全职", "Full-time"],
-  ["part", "兼职", "Part-time"], ["saved", "我的收藏", "Saved"]];
+  ["part", "兼职", "Part-time"], ["saved", "我的收藏", "Saved"], ["applied", "已投递", "Applied"]];
+// 这几个进度算「已投递」：出现在「已投递」分类里，也是来信监控要盯的公司
+const APPLIED = ["applied", "interview", "offer", "rejected"];
+const KIND_ZH = {offer:"Offer 🎉", reject:"未通过", interview:"面试 / 下一步 ✨", receipt:"已收到申请", other:"新消息"};
 const FITS = [["strong", "强对口", "Strong"], ["possible", "可能对口", "Possible"], ["none", "其他", "Other"]];
 const store = {
   get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
@@ -250,6 +268,7 @@ async function unlock(pass){
   sessionStorage.setItem("radar.pass", pass);
   $("gate").hidden = true; $("app").hidden = false;
   $("updated").textContent = "更新于 " + fmtTime(DATA.generated_at) + " · " + DATA.jobs.length + " 个在招岗位";
+  if (/#applied\b/.test(location.hash)) state.cat = "applied";   // 从手机推送点进来
   buildFilters(); render(); pullTracker();
 }
 $("unlock").onclick = () => unlock($("pass").value);
@@ -279,6 +298,16 @@ function hourly(j){
   return j.salary_min;
 }
 const item = uid => TRACK.items[uid] || (TRACK.items[uid] = {});
+const appliedUids = () => Object.keys(TRACK.items).filter(u => APPLIED.includes(TRACK.items[u].status));
+const mailOf = uid => Object.entries(TRACK.mail || {}).filter(([k,m]) => m.uid === uid && !m.ignored)
+  .sort((a,b) => (b[1].date||"").localeCompare(a[1].date||""));
+const unseenMail = () => Object.entries(TRACK.mail || {}).filter(([k,m]) => !m.seen_at && !m.ignored);
+function mailBar(){
+  const n = unseenMail().length;
+  $("mailbar").innerHTML = n && state.cat !== "applied" ?
+    `<button class="mailbar" id="goApplied">📬 有 ${n} 封雇主来信还没看 · ${n} unread employer email${n>1?"s":""} → 点这里查看</button>` : "";
+  const b = $("goApplied"); if (b) b.onclick = () => { state.cat = "applied"; buildCats(); render(); };
+}
 
 // ── 筛选 ───────────────────────────────────────────
 function options(sel, values, anyZh, anyEn){
@@ -312,15 +341,19 @@ function buildCats(){
   document.querySelectorAll("#cats .cat").forEach(b => b.classList.toggle("on", b.dataset.cat === state.cat));
   const J = DATA.jobs;
   const n = {all:J.length, pr:J.filter(j=>j.category==="pr").length, full:J.filter(j=>j.category==="full").length,
-    part:J.filter(j=>j.category==="part").length, saved:J.filter(j=>TRACK.items[j.uid]?.saved).length};
-  document.querySelectorAll("[data-count]").forEach(s => s.textContent = n[s.dataset.count] ?? "");
+    part:J.filter(j=>j.category==="part").length, saved:J.filter(j=>TRACK.items[j.uid]?.saved).length,
+    applied:appliedUids().length};
+  document.querySelectorAll("[data-count]").forEach(s => s.innerHTML = (n[s.dataset.count] ?? "") +
+    (s.dataset.count === "applied" && unseenMail().length ? '<span class="dot" title="有未读来信"></span>' : ""));
+  mailBar();
 }
 function visible(){
   const q = $("q").value.trim().toLowerCase(), city = $("city").value, emp = $("employer").value,
     src = $("source").value, sal = parseFloat($("salary").value), dl = $("deadline").value, st = $("status").value;
   return DATA.jobs.filter(j => {
     const t = TRACK.items[j.uid] || {};
-    if (state.cat === "saved" ? !t.saved : (state.cat !== "all" && j.category !== state.cat)) return false;
+    if (state.cat === "saved" ? !t.saved : state.cat === "applied" ? !APPLIED.includes(t.status) :
+        (state.cat !== "all" && j.category !== state.cat)) return false;
     if (state.fits.size && !state.fits.has(j.fit)) return false;
     if (city && j.city !== city) return false;
     if (emp && j.employer !== emp) return false;
@@ -401,8 +434,68 @@ function sortRows(rows){
   return rows.map((j, i) => [key(j), i, j])
     .sort((a, b) => a[0][0] - b[0][0] || a[0][1] - b[0][1] || a[1] - b[1]).map(x => x[2]);
 }
+// 「已投递」：岗位下架后看板数据里就没有它了，用投递时抄下的要点补上
+function appliedRows(){
+  const byUid = {}; DATA.jobs.forEach(j => byUid[j.uid] = j);
+  return appliedUids().map(uid => byUid[uid] || {uid, title:TRACK.items[uid].title||uid, employer:TRACK.items[uid].employer,
+      city:TRACK.items[uid].city, url:TRACK.items[uid].url, source:{zh:TRACK.items[uid].source||"", en:""}, _gone:true})
+    .sort((a,b) => {  // 有未读来信的排最前，其余按投递日期新→旧
+      const ua = mailOf(a.uid).some(([k,m]) => !m.seen_at), ub = mailOf(b.uid).some(([k,m]) => !m.seen_at);
+      return (ub - ua) || (TRACK.items[b.uid].applied_at||"").localeCompare(TRACK.items[a.uid].applied_at||""); });
+}
+function mailHtml(k, m){
+  const d = m.date ? fmtTime(m.date) : "";
+  return `<div class="mail${m.seen_at?"":" new"}" data-mail="${esc(k)}">
+    <div><span class="k k-${esc(m.kind)}">${m.seen_at?"":"🔴 "}${esc(KIND_ZH[m.kind]||"新消息")}</span>
+      <span class="sub">${esc(m.subject)}</span></div>
+    <div class="hint">${esc(m.from)} · ${esc(d)}${m.folder?" · ⚠️ 在"+esc(m.folder)+"里":""}</div>
+    ${m.snippet ? `<div class="snip">${esc(m.snippet)}</div>` : ""}
+    ${m.timeline ? `<div class="hint">⏱ 邮件里写的回复时间：${esc(m.timeline)}</div>` : ""}
+    <div class="tools"><button class="btn small" data-act="notmail">不是雇主来信 Not related</button></div>
+  </div>`;
+}
+function appliedCard(j){
+  const t = TRACK.items[j.uid] || {};
+  const mails = mailOf(j.uid);
+  const statusOpts = STATUSES.map(([v,zh,en]) => `<option value="${v}"${(t.status||"")===v?" selected":""}>${zh} · ${en}</option>`).join("");
+  const hint = (mails.find(([k,m]) => m.timeline) || [0,{}])[1].timeline;
+  const tl = t.timeline || j.response_time || "";
+  return `<article class="card saved" data-uid="${esc(j.uid)}">
+    <div class="row1"><div>
+      <h2 class="title">${j.url ? `<a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>` : esc(j.title)}</h2>
+      ${j.title_zh ? `<div class="title-zh">${esc(j.title_zh)}</div>` : ""}
+      <div class="meta">${esc(j.employer||"雇主未写明")} · 📍 ${esc(j.place||j.city||"")}${j._gone?" · 岗位已下架 Posting closed":""}</div>
+    </div></div>
+    <div class="appmeta">
+      <span><b>投递日期 Applied</b>${t.applied_at ? esc(t.applied_at.slice(0,10)) : "未记录"}</span>
+      <span><b>来信 Emails</b>${mails.length ? mails.length + " 封" + (mails.some(([k,m])=>!m.seen_at) ? "（有未读）" : "") : "还没有 None yet"}</span>
+      <span><b>公司说明的回复时间 Stated timeline</b>${esc(tl || hint || "未说明 Not stated")}</span>
+    </div>
+    ${mails.map(([k,m]) => mailHtml(k, m)).join("")}
+    <div class="track">
+      <select data-act="status" aria-label="投递进度 Status">${statusOpts}</select>
+      <input class="tl" data-act="timeline" placeholder="回复时间（招聘页/邮件里写的，如「2–3 周内」）" value="${esc(t.timeline||"")}">
+      <textarea data-act="note" placeholder="备注 Notes：联系人、面试时间…">${esc(t.note||"")}</textarea>
+    </div>
+  </article>`;
+}
+// 打开「已投递」就算看过了：云端不再响铃
+function markSeen(){
+  const now = new Date().toISOString(); let changed = false;
+  unseenMail().forEach(([k,m]) => { m.seen_at = now; m._t = now; changed = true; });
+  if (changed) touch();
+}
 function render(){
   if (!DATA) return;
+  if (state.cat === "applied"){
+    const rows = appliedRows();
+    $("summary").textContent = `已投递 ${rows.length} 个岗位 · 雇主来信每小时检查一次 · ${rows.length} applied`;
+    $("list").innerHTML = rows.length ? rows.map(appliedCard).join("") :
+      `<div class="empty">还没有已投递的岗位<br><span class="hint">在岗位卡片上把进度改成「已投」，它就会出现在这里，并开始监控这家公司的来信。</span></div>`;
+    mailBar(); setTimeout(markSeen, 1500);   // 先让高亮显示一下，再记为已读（下次打开就不再高亮）
+    return;
+  }
+  mailBar();
   const rows = sortRows(visible());
   $("summary").textContent = `显示 ${rows.length} / ${DATA.jobs.length} 个岗位 · Showing ${rows.length} of ${DATA.jobs.length}`;
   $("list").innerHTML = rows.length ? rows.slice(0, 300).map(card).join("") :
@@ -413,6 +506,9 @@ $("toggleFilters").onclick = () => $("filters").classList.toggle("open");
 // ── 收藏 / 进度 / 备注 / 简历请求 ─────────────────────
 $("list").addEventListener("click", e => {
   const el = e.target.closest("[data-act]"); if (!el) return;
+  if (el.dataset.act === "notmail"){ const k = el.closest(".mail").dataset.mail, m = TRACK.mail[k];
+    m.ignored = true; m.seen_at = m.seen_at || new Date().toISOString(); m._t = new Date().toISOString();
+    touch(); render(); buildCats(); return; }
   const cardEl = el.closest(".card"); const uid = cardEl.dataset.uid;
   const j = DATA.jobs.find(x => x.uid === uid); const t = item(uid);
   remember(t, j);
@@ -424,15 +520,17 @@ $("list").addEventListener("click", e => {
 $("list").addEventListener("change", e => {
   const el = e.target.closest("[data-act=status]"); if (!el) return;
   const uid = el.closest(".card").dataset.uid; const t = item(uid);
-  remember(t, DATA.jobs.find(x => x.uid === uid)); t.status = el.value; if (el.value) t.saved = true; touch(); buildCats();
+  remember(t, DATA.jobs.find(x => x.uid === uid)); t.status = el.value; if (el.value) t.saved = true;
+  if (APPLIED.includes(el.value) && !t.applied_at) t.applied_at = new Date().toISOString();
+  touch(); buildCats();
 });
 $("list").addEventListener("input", e => {
-  const el = e.target.closest("[data-act=note]"); if (!el) return;
+  const el = e.target.closest("[data-act=note],[data-act=timeline]"); if (!el) return;
   const uid = el.closest(".card").dataset.uid; const t = item(uid);
-  remember(t, DATA.jobs.find(x => x.uid === uid)); t.note = el.value; touch(true);
+  remember(t, DATA.jobs.find(x => x.uid === uid)); t[el.dataset.act] = el.value; touch(true);
 });
 // 把岗位要点抄进追踪记录：岗位下架后看板里就没有它了，但投递记录还要能看懂
-function remember(t, j){ if (!j) return; t.title = j.title; t.employer = j.employer; t.city = j.city; t.url = j.url; t.source = j.source.zh; }
+function remember(t, j){ if (!j || j._gone) return; t.title = j.title; t.employer = j.employer; t.city = j.city; t.url = j.url; t.source = j.source.zh; }
 
 // ── 同步（GitHub 私有仓库）──────────────────────────
 // 本机手动设置的令牌优先；没有就用加密数据里自带的（口令解锁后才拿得到）
@@ -452,7 +550,8 @@ async function pullTracker(){
     TRACK = merge(remote, TRACK);
     store.set("radar.tracker", JSON.stringify(TRACK)); setSync("已同步 Synced");
     // 本机有云端没有的改动（比如之前没设置同步时存下的收藏）→ 补推上去
-    if (JSON.stringify(TRACK.items) !== JSON.stringify(remote.items || {})) push();
+    if (JSON.stringify(TRACK.items) !== JSON.stringify(remote.items || {}) ||
+        JSON.stringify(TRACK.mail || {}) !== JSON.stringify(remote.mail || {})) push();
   } catch(e){ setSync("同步失败，稍后重试 Sync failed"); }
   render(); buildCats();
 }
@@ -462,6 +561,15 @@ function merge(a, b){
   const keys = new Set([...Object.keys(a.items||{}), ...Object.keys(b.items||{})]);
   keys.forEach(k => { const x = (a.items||{})[k], y = (b.items||{})[k];
     out.items[k] = !x ? y : !y ? x : ((y._t||"") > (x._t||"") ? y : x); });
+  // 来信由云端监控写入、看板只改「已读/忽略」：逐封合并，已读和响铃记录取并集
+  out.mail = {};
+  const ma = a.mail || {}, mb = b.mail || {};
+  new Set([...Object.keys(ma), ...Object.keys(mb)]).forEach(k => {
+    const x = ma[k], y = mb[k]; if (!x || !y){ out.mail[k] = x || y; return; }
+    const m = Object.assign({}, x, y);
+    m.seen_at = x.seen_at || y.seen_at; m.ignored = x.ignored || y.ignored;
+    m.rings = (x.rings||[]).length >= (y.rings||[]).length ? x.rings : y.rings;
+    m.pushed_at = x.pushed_at || y.pushed_at; out.mail[k] = m; });
   return out;
 }
 let timer = null;
