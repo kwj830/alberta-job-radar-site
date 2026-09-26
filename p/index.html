@@ -387,6 +387,13 @@ function badges(j){
   if (j.category === "part") b.push(`<span class="badge b-part">兼职 · Part-time</span>`);
   return b.join("");
 }
+function briefs(j, t){
+  t = t || {};
+  const jb = t.job_brief || j.job_brief, cb = t.company_brief || j.company_brief;
+  if (!jb && !cb) return `<div class="hint" style="margin-top:8px">⏳ 工作内容和公司简介还在生成（Mac 空闲时陆续补齐）</div>`;
+  return (jb ? `<div class="brief"><b>🧭 这份工作做什么</b>${esc(jb)}</div>` : "") +
+         (cb ? `<div class="brief"><b>🏢 公司是做什么的</b>${esc(cb)}</div>` : "");
+}
 function resumeState(t){
   const r = t.resume || {};
   if (r.state === "requested") return "⏳ 已提交，Mac 空闲时生成（约 10 分钟）· Queued";
@@ -415,6 +422,7 @@ function card(j){
       <button class="star${t.saved?" on":""}" data-act="save" aria-label="收藏 Save">${t.saved?"★":"☆"}</button>
     </div>
     <div class="badges">${badges(j)}</div>
+    ${briefs(j)}
     <div class="facts">
       <span><b>薪资 Pay</b>${esc(j.salary || "未写明 N/A")}${why("salary")}</span>
       <span><b>截止 Deadline</b>${esc(dlText)}${j.deadline ? "" : why("deadline")}</span>
@@ -493,10 +501,8 @@ function appliedCard(j){
       <span><b>公司来信 Emails</b>${mails.length ? mails.length + " 封" + (mails.some(([k,m])=>!m.seen_at) ? "（有没看过的）" : "") : "还没有 None yet"}</span>
       <span><b>公司说多久回复 Reply time</b>${esc(tl || hint || "没说 Not stated")}</span>
     </div>
-    ${t.job_brief ? `<div class="brief"><b>🧭 这份工作做什么</b>${esc(t.job_brief)}</div>` : ""}
-    ${t.company_brief ? `<div class="brief"><b>🏢 公司是做什么的</b>${esc(t.company_brief)}</div>` : ""}
+    ${briefs(j, t)}
     ${t.process ? `<div class="brief"><b>🪜 招聘流程（官网写的）</b>${esc(t.process)}</div>` : ""}
-    ${!(t.job_brief || t.company_brief) ? `<div class="hint" style="margin-top:8px">⏳ 工作内容和公司简介会在 Mac 空闲时自动生成（约 10 分钟）</div>` : ""}
     <details class="jobinfo"><summary>📄 招聘页原文摘录 Posting excerpt</summary>
       <div class="facts">${j.salary ? `<span><b>薪资 Pay</b>${esc(j.salary)}</span>` : ""}
         ${j.deadline ? `<span><b>截止 Deadline</b>${esc(j.deadline)}</span>` : ""}</div>
@@ -571,6 +577,8 @@ function remember(t, j){ if (!j || j._gone) return; t.title = j.title; t.employe
   if (j.response_time) t.response_time = j.response_time;
   // 岗位简介也抄一份：投得多了记不住细节，岗位下架后也要能查
   if (j.excerpt) t.excerpt = j.excerpt.slice(0, 900); if (j.title_zh) t.title_zh = j.title_zh;
+  if (j.job_brief && !t.job_brief) t.job_brief = j.job_brief;
+  if (j.company_brief && !t.company_brief) t.company_brief = j.company_brief;
   if (j.salary) t.salary = j.salary; if (j.deadline) t.deadline = j.deadline; if (j.place) t.place = j.place; }   // 岗位下架后「公司说多久回复」还在
 
 // ── 同步（GitHub 私有仓库）──────────────────────────
