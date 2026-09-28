@@ -310,7 +310,8 @@ const item = uid => TRACK.items[uid] || (TRACK.items[uid] = {});
 const appliedUids = () => Object.keys(TRACK.items).filter(u => APPLIED.includes(TRACK.items[u].status));
 const mailOf = (uid, hidden) => Object.entries(TRACK.mail || {}).filter(([k,m]) => m.uid === uid && !!m.ignored === !!hidden)
   .sort((a,b) => (b[1].date||"").localeCompare(a[1].date||""));
-const unseenMail = () => Object.entries(TRACK.mail || {}).filter(([k,m]) => !m.seen_at && !m.ignored);
+// uid 以 watch: 开头的是「关注的发件人」（如领英账号审核），只推送，不算雇主来信
+const unseenMail = () => Object.entries(TRACK.mail || {}).filter(([k,m]) => !m.seen_at && !m.ignored && !String(m.uid||"").startsWith("watch:"));
 function mailBar(){
   const n = unseenMail().length;
   $("mailbar").innerHTML = n && state.cat !== "applied" ?
