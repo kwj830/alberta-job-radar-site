@@ -74,6 +74,10 @@ main .summary{color:var(--muted);font-size:15px;margin:2px 0 14px}
 .b-grad{background:var(--blue-soft);color:var(--blue)}
 .b-early{background:#fbe3e0;color:#b3261e}
 .why{display:block;font-size:.82em;color:var(--muted,#8a8378);font-weight:400;margin-top:2px}
+.gradbox{margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--grad-bg,#eef6ee);font-size:14px;line-height:1.5}
+.gradbox.student{background:var(--grad-st,#f3f0e6)}
+.gradbox .quote{color:var(--muted,#8a8378);font-size:.9em;margin-top:2px}
+@media (prefers-color-scheme: dark){.gradbox{background:#1f2b21}.gradbox.student{background:#2b2819}}
 .golink{display:inline-block;margin-left:6px;font-size:.9em;font-weight:600;white-space:nowrap}
 .b-strong{background:var(--accent-soft);color:var(--accent)}
 .b-possible{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
@@ -248,7 +252,7 @@ const $ = id => document.getElementById(id);
 const STATUSES = [["", "未开始", "Not started"], ["todo", "待投", "To apply"], ["applied", "已投", "Applied"],
   ["interview", "面试", "Interview"], ["offer", "Offer", "Offer"], ["rejected", "拒绝", "Rejected"]];
 const CATS = [["all", "全部", "All"], ["pr", "PR 优选", "PR priority"], ["full", "全职", "Full-time"],
-  ["part", "兼职", "Part-time"], ["saved", "我的收藏", "Saved"], ["applied", "已投递", "Applied"]];
+  ["part", "兼职", "Part-time"], ["grad", "毕业期入职", "Starts 2027+"], ["saved", "我的收藏", "Saved"], ["applied", "已投递", "Applied"]];
 // 这几个进度算「已投递」：出现在「已投递」分类里，也是来信监控要盯的公司
 const APPLIED = ["applied", "interview", "offer", "rejected"];
 const KIND_ZH = {offer:"Offer 🎉", reject:"未通过", interview:"面试 / 下一步 ✨", receipt:"已收到申请", other:"新消息"};
@@ -352,7 +356,7 @@ function buildCats(){
   document.querySelectorAll("#cats .cat").forEach(b => b.classList.toggle("on", b.dataset.cat === state.cat));
   const J = DATA.jobs;
   const n = {all:J.length, pr:J.filter(j=>j.category==="pr").length, full:J.filter(j=>j.category==="full").length,
-    part:J.filter(j=>j.category==="part").length, saved:J.filter(j=>TRACK.items[j.uid]?.saved).length,
+    part:J.filter(j=>j.category==="part").length, grad:J.filter(j=>j.grad).length, saved:J.filter(j=>TRACK.items[j.uid]?.saved).length,
     applied:appliedUids().length};
   document.querySelectorAll("[data-count]").forEach(s => s.innerHTML = (n[s.dataset.count] ?? "") +
     (s.dataset.count === "applied" && unseenMail().length ? '<span class="dot" title="有未读来信"></span>' : ""));
@@ -364,6 +368,7 @@ function visible(){
   return DATA.jobs.filter(j => {
     const t = TRACK.items[j.uid] || {};
     if (state.cat === "saved" ? !t.saved : state.cat === "applied" ? !APPLIED.includes(t.status) :
+        state.cat === "grad" ? !j.grad :
         (state.cat !== "all" && j.category !== state.cat)) return false;
     if (state.fits.size && !state.fits.has(j.fit)) return false;
     if (city && j.city !== city) return false;
@@ -396,6 +401,13 @@ function goLinks(text, j){
   if (j.url && GO_PAGE.test(text)) out += ` <a class="golink" href="${esc(j.url)}" target="_blank" rel="noopener">打开原网页 ↗</a>`;
   if (j.employer && GO_SITE.test(text)) out += ` <a class="golink" href="https://www.google.com/search?q=${encodeURIComponent(j.employer.split(" · ")[0] + " official website")}" target="_blank" rel="noopener">搜官网 ↗</a>`;
   return out;
+}
+// 「毕业期入职」：入职时间是逐条读原文审出来的，附原文依据（本人 2026-09-29 要求）
+function gradBox(j){
+  const g = j.grad; if (!g) return "";
+  return `<div class="gradbox${g.student ? " student" : ""}"><b>🎓 ${esc(g.when)} 入职${g.relation ? " · " + esc(g.relation) : ""} · ${esc(g.kind)}</b>` +
+    (g.note ? `<div>${esc(g.note)}</div>` : "") +
+    (g.quote ? `<div class="quote">原文：“${esc(g.quote)}” <a class="golink" href="${esc(j.url)}" target="_blank" rel="noopener">打开原网页 ↗</a></div>` : "") + `</div>`;
 }
 function briefs(j, t){
   t = t || {};
@@ -432,6 +444,7 @@ function card(j){
       <button class="star${t.saved?" on":""}" data-act="save" aria-label="收藏 Save">${t.saved?"★":"☆"}</button>
     </div>
     <div class="badges">${badges(j)}</div>
+    ${gradBox(j)}
     ${briefs(j)}
     <div class="facts">
       <span><b>薪资 Pay</b>${esc(j.salary || "未写明 N/A")}${why("salary")}</span>
