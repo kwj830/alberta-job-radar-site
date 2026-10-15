@@ -346,7 +346,10 @@ function buildFilters(){
     const k = b.dataset.fit; state.fits.has(k) ? state.fits.delete(k) : state.fits.add(k); b.classList.toggle("on"); render(); };
   const uniq = key => [...new Set(J.map(key).filter(Boolean))].sort();
   options($("city"), uniq(j => j.city).map(c => [c,c]), "全部城市", "All cities");
-  options($("employer"), uniq(j => j.employer).map(c => [c,c]), "全部雇主", "All employers");
+  // 雇主：不分大小写按 A→Z 排，并写出岗位数（原来区分大小写，小写开头的公司名全排到了最后）
+  const nemp = {}; J.forEach(j => { if (j.employer) nemp[j.employer] = (nemp[j.employer] || 0) + 1; });
+  options($("employer"), Object.keys(nemp).sort((a, b) => a.localeCompare(b, "en", {sensitivity: "base"}))
+    .map(c => [c, c + "（" + nemp[c] + "）"]), "全部雇主", "All employers");
   // 按岗位数从多到少排、并写出条数：按字母排时 Indeed 混在 40 多个来源中间，手机上找不到（2026-10-14）
   const srcs = {}, nsrc = {};
   J.forEach(j => { srcs[j.source.zh] = j.source.zh + " · " + j.source.en; nsrc[j.source.zh] = (nsrc[j.source.zh] || 0) + 1; });
