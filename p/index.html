@@ -26,6 +26,9 @@
   --line:#3a3833; --accent:#7cc2ad; --accent-soft:#233a33; --gold:#e0b35c; --gold-soft:#3b3222;
   --rose:#e59488; --rose-soft:#3f2825; --blue:#8fb4e0; --blue-soft:#253346; color-scheme:dark;}}
 *{box-sizing:border-box}
+/* 长链接、长单词一律可断行：一条不换行的长链接会把手机上的整页撑宽，iPhone 就把页面缩小（2026-10-14） */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+.card,.mail,.brief,.excerpt,.snip,.marks,.facts,.source,.parthint{overflow-wrap:anywhere;min-width:0}
 html,body{margin:0;background:var(--bg);color:var(--ink);
   font:17px/1.65 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Helvetica Neue",sans-serif}
 button,input,select,textarea{font:inherit;color:inherit}
