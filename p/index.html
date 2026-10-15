@@ -82,6 +82,9 @@ main .summary{color:var(--muted);font-size:15px;margin:2px 0 14px}
 .b-strong{background:var(--accent-soft);color:var(--accent)}
 .b-possible{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
 .b-part{background:var(--rose-soft);color:var(--rose)}
+.b-hid{background:var(--bg);color:var(--muted);border:1px dashed var(--line)}
+.parthint{color:var(--muted);font-size:15px;margin:0 0 14px}
+.parthint button{border:0;background:none;color:var(--accent);font:inherit;cursor:pointer;padding:0;text-decoration:underline}
 .facts{display:flex;gap:18px;flex-wrap:wrap;color:var(--ink);font-size:15px;margin-top:10px}
 .facts span b{color:var(--muted);font-weight:500;margin-right:4px}
 .source{margin-top:12px;font-size:14px;color:var(--muted)}
@@ -262,7 +265,7 @@ const store = {
   set(k,v){ try { localStorage.setItem(k,v); } catch(e){} },
   del(k){ try { localStorage.removeItem(k); } catch(e){} },
 };
-let DATA = null, TRACK = {items:{}}, SHA = null, state = {cat:"all", fits:new Set()};
+let DATA = null, TRACK = {items:{}}, SHA = null, state = {cat:"all", fits:new Set(), showHidPart:false};
 
 // ── 解密 ───────────────────────────────────────────
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
@@ -355,12 +358,22 @@ function buildFilters(){
 function buildCats(){
   document.querySelectorAll("#cats .cat").forEach(b => b.classList.toggle("on", b.dataset.cat === state.cat));
   const J = DATA.jobs;
-  const n = {all:J.length, pr:J.filter(j=>j.category==="pr").length, full:J.filter(j=>j.category==="full").length,
-    part:J.filter(j=>j.category==="part").length, grad:J.filter(j=>j.grad).length, saved:J.filter(j=>TRACK.items[j.uid]?.saved).length,
+  const shown = J.filter(j => !hidPart(j));
+  const n = {all:shown.length, pr:J.filter(j=>j.category==="pr").length, full:J.filter(j=>j.category==="full").length,
+    part:shown.filter(j=>j.category==="part").length, grad:J.filter(j=>j.grad).length, saved:J.filter(j=>TRACK.items[j.uid]?.saved).length,
     applied:appliedUids().length};
   document.querySelectorAll("[data-count]").forEach(s => s.innerHTML = (n[s.dataset.count] ?? "") +
     (s.dataset.count === "applied" && unseenMail().length ? '<span class="dot" title="有未读来信"></span>' : ""));
   mailBar();
+}
+// 「兼职」里干不了 / 没用的默认收起（本人 2026-10-14 要求）；收藏过的照常显示
+const hidPart = j => j.category === "part" && j.part && !j.part.ok && !(TRACK.items[j.uid] || {}).saved;
+function partHint(){
+  if (state.cat !== "part" && state.cat !== "all") return "";
+  const n = DATA.jobs.filter(hidPart).length;
+  if (!n) return "";
+  return `<div class="parthint">${state.showHidPart ? "正在显示" : "已收起"} ${n} 条干不了或没用的兼职（外地、要执照或法语、时薪低于你定的标准、超学签 24 小时、跟财务和办公室都不沾边）·
+    <button data-act="hidpart">${state.showHidPart ? "收起它们" : "展开看看"}</button></div>`;
 }
 function visible(){
   const q = $("q").value.trim().toLowerCase(), city = $("city").value, emp = $("employer").value,
@@ -370,6 +383,7 @@ function visible(){
     if (state.cat === "saved" ? !t.saved : state.cat === "applied" ? !APPLIED.includes(t.status) :
         state.cat === "grad" ? !j.grad :
         (state.cat !== "all" && j.category !== state.cat)) return false;
+    if (hidPart(j) && !state.showHidPart && state.cat !== "saved") return false;
     if (state.fits.size && !state.fits.has(j.fit)) return false;
     if (city && j.city !== city) return false;
     if (emp && j.employer !== emp) return false;
@@ -392,6 +406,8 @@ function badges(j){
   if (j.fit === "strong") b.push(`<span class="badge b-strong">强对口 · Strong fit</span>`);
   if (j.fit === "possible") b.push(`<span class="badge b-possible">可能对口 · Possible fit</span>`);
   if (j.category === "part") b.push(`<span class="badge b-part">兼职 · Part-time</span>`);
+  if (j.part && j.part.ok) b.push(`<span class="badge b-possible">${j.part.tier === "field" ? "对口兼职（财务 / 银行 / 数据）" : "办公室类兼职"}</span>`);
+  if (j.part && !j.part.ok) b.push(`<span class="badge b-hid">已收起：${esc(j.part.why)}</span>`);
   return b.join("");
 }
 // 文字里让人「去原网页 / 官网 / Workday 看」的，旁边直接给能点的链接（本人 2026-09-28 要求：不要让她自己去找）
@@ -560,14 +576,15 @@ function render(){
   mailBar();
   const rows = sortRows(visible());
   $("summary").textContent = `显示 ${rows.length} / ${DATA.jobs.length} 个岗位 · Showing ${rows.length} of ${DATA.jobs.length}`;
-  $("list").innerHTML = rows.length ? rows.slice(0, 300).map(card).join("") :
-    `<div class="empty">没有符合条件的岗位<br><span class="hint">No jobs match these filters.</span></div>`;
+  $("list").innerHTML = partHint() + (rows.length ? rows.slice(0, 300).map(card).join("") :
+    `<div class="empty">没有符合条件的岗位<br><span class="hint">No jobs match these filters.</span></div>`);
 }
 $("toggleFilters").onclick = () => $("filters").classList.toggle("open");
 
 // ── 收藏 / 进度 / 备注 / 简历请求 ─────────────────────
 $("list").addEventListener("click", e => {
   const el = e.target.closest("[data-act]");
+  if (el && el.dataset.act === "hidpart"){ state.showHidPart = !state.showHidPart; render(); return; }
   if (!el){ const box = e.target.closest(".mail[data-link]");   // 点来信本身 → 打开邮箱原信
     if (box && !e.target.closest("a")) window.open(box.dataset.link, "_blank", "noopener"); return; }
   if (el.dataset.act === "unhide"){ const m = TRACK.mail[el.closest(".mail").dataset.mail];
