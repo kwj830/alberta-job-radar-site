@@ -347,8 +347,11 @@ function buildFilters(){
   const uniq = key => [...new Set(J.map(key).filter(Boolean))].sort();
   options($("city"), uniq(j => j.city).map(c => [c,c]), "全部城市", "All cities");
   options($("employer"), uniq(j => j.employer).map(c => [c,c]), "全部雇主", "All employers");
-  const srcs = {}; J.forEach(j => srcs[j.source.zh] = j.source.zh + " · " + j.source.en);
-  options($("source"), Object.keys(srcs).sort().map(k => [k, srcs[k]]), "全部来源", "All sources");
+  // 按岗位数从多到少排、并写出条数：按字母排时 Indeed 混在 40 多个来源中间，手机上找不到（2026-10-14）
+  const srcs = {}, nsrc = {};
+  J.forEach(j => { srcs[j.source.zh] = j.source.zh + " · " + j.source.en; nsrc[j.source.zh] = (nsrc[j.source.zh] || 0) + 1; });
+  options($("source"), Object.keys(srcs).sort((a, b) => nsrc[b] - nsrc[a] || a.localeCompare(b))
+    .map(k => [k, srcs[k] + "（" + nsrc[k] + "）"]), "全部来源", "All sources");
   options($("status"), STATUSES.slice(1).map(([v,zh,en]) => [v, zh + " " + en]), "全部", "All");
   ["q","city","employer","source","salary","deadline","status"].forEach(id => $(id).oninput = render);
   // 排序是个人习惯，不随「清空筛选」重置；记在本机，切换分类时保持不变
