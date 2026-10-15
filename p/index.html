@@ -426,7 +426,7 @@ function badges(j){
   if (j.category === "part") b.push(`<span class="badge b-part">兼职 · Part-time</span>`);
   if (j.part && j.part.ok) b.push(`<span class="badge b-possible">${j.part.tier === "field" ? "对口兼职（财务 / 银行 / 数据）" : "办公室类兼职"}</span>`);
   if (j.part && !j.part.ok) b.push(`<span class="badge b-hid">已收起：${esc(j.part.why)}</span>`);
-  if (j.reach) b.push(j.reach.ok ? `<span class="badge b-strong">现在就能申 · Within reach</span>`
+  if (j.reach) b.push(j.reach.ok ? `<span class="badge b-strong">资格够得上 · Qualified</span>`
                                 : `<span class="badge b-hid">暂时够不上：${esc(j.reach.why)}</span>`);
   if (j.imm === 2) b.push(`<span class="badge b-possible">ATP 行业雇主</span>`);
   return b.join("");
@@ -507,7 +507,7 @@ function card(j){
 // 已过期的放最后。同组内用原下标保持推荐顺序（Array.sort 在旧 Safari 上不保证稳定）。
 function sortRows(rows){
   const v = $("sort").value;
-  // PR 优选：现在就能申的排前面，Senior / 多年经验 / 已截止的排后面
+  // PR 优选：资格够得上的排前面，Senior / 多年经验 / 已截止的排后面
   const reachKey = j => (j.reach && !j.reach.ok) ? 1 : 0;
   if (v === "imm") {
     const cat = {pr: 0, full: 1, grad: 1, part: 2};
