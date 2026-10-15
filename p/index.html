@@ -258,7 +258,7 @@ summary{cursor:pointer;color:var(--accent);font-size:15px}
 const $ = id => document.getElementById(id);
 const STATUSES = [["", "未开始", "Not started"], ["todo", "待投", "To apply"], ["applied", "已投", "Applied"],
   ["interview", "面试", "Interview"], ["offer", "Offer", "Offer"], ["rejected", "拒绝", "Rejected"]];
-const CATS = [["all", "全部", "All"], ["pr", "PR 优选", "PR priority"], ["full", "全职", "Full-time"],
+const CATS = [["all", "全部", "All"], ["pr", "PR 优选", "PR priority"], ["ready", "毕业能做", "Ready after grad"], ["full", "全职", "Full-time"],
   ["part", "兼职", "Part-time"], ["grad", "毕业期入职", "Starts 2027+"], ["saved", "我的收藏", "Saved"], ["applied", "已投递", "Applied"]];
 // 这几个进度算「已投递」：出现在「已投递」分类里，也是来信监控要盯的公司
 const APPLIED = ["applied", "interview", "offer", "rejected"];
@@ -378,7 +378,7 @@ function buildCats(){
   const J = DATA.jobs;
   const shown = J.filter(j => !hidPart(j));
   const n = {all:shown.length, pr:J.filter(j=>j.category==="pr").length, full:J.filter(j=>j.category==="full").length,
-    part:shown.filter(j=>j.category==="part").length, grad:J.filter(j=>j.grad).length, saved:J.filter(j=>TRACK.items[j.uid]?.saved).length,
+    part:shown.filter(j=>j.category==="part").length, ready:J.filter(j=>j.ready).length, grad:J.filter(j=>j.grad).length, saved:J.filter(j=>TRACK.items[j.uid]?.saved).length,
     applied:appliedUids().length};
   document.querySelectorAll("[data-count]").forEach(s => s.innerHTML = (n[s.dataset.count] ?? "") +
     (s.dataset.count === "applied" && unseenMail().length ? '<span class="dot" title="有未读来信"></span>' : ""));
@@ -386,6 +386,12 @@ function buildCats(){
 }
 // 「兼职」里干不了 / 没用的默认收起（本人 2026-10-14 要求）；收藏过的照常显示
 const hidPart = j => j.category === "part" && j.part && !j.part.ok && !(TRACK.items[j.uid] || {}).saved;
+// 两个容易混的分类，顶部写清标准（本人 2026-10-15 问「现在这个 PR 优选是什么标准」）
+function catHint(){
+  if (state.cat === "pr") return `<div class="parthint">「PR 优选」：职业对口（数据 / 金融 / 咨询 / 市场研究分析等 TEER 1 职业）且是全职，毕业后拿毕业工签在阿省全职做能计入 CEC / AOS；或职业和雇主行业都在阿省 ATP 名单上。<b>不代表你现在够得上</b>——看每张卡片上的「资格够得上 / 暂时够不上」。</div>`;
+  if (state.cat === "ready") return `<div class="parthint">「毕业能做」：毕业后入职（写明 2027 年 8 月及以后，或 2027 届应届生项目）、不是在读学生岗、不是 Senior、经验要求不到 2 年、没过截止、全职、在阿省或地点未写、方向和你专业沾边。毕业时间按 12 个月版（2027 年 8 月）算。</div>`;
+  return "";
+}
 function partHint(){
   if (state.cat !== "part" && state.cat !== "all") return "";
   const n = DATA.jobs.filter(hidPart).length;
@@ -399,7 +405,7 @@ function visible(){
   return DATA.jobs.filter(j => {
     const t = TRACK.items[j.uid] || {};
     if (state.cat === "saved" ? !t.saved : state.cat === "applied" ? !APPLIED.includes(t.status) :
-        state.cat === "grad" ? !j.grad :
+        state.cat === "grad" ? !j.grad : state.cat === "ready" ? !j.ready :
         (state.cat !== "all" && j.category !== state.cat)) return false;
     if (hidPart(j) && !state.showHidPart && state.cat !== "saved") return false;
     if (state.fits.size && !state.fits.has(j.fit)) return false;
@@ -426,6 +432,7 @@ function badges(j){
   if (j.category === "part") b.push(`<span class="badge b-part">兼职 · Part-time</span>`);
   if (j.part && j.part.ok) b.push(`<span class="badge b-possible">${j.part.tier === "field" ? "对口兼职（财务 / 银行 / 数据）" : "办公室类兼职"}</span>`);
   if (j.part && !j.part.ok) b.push(`<span class="badge b-hid">已收起：${esc(j.part.why)}</span>`);
+  if (j.ready) b.push(`<span class="badge b-strong">🎓 毕业能做 · 入职：${esc(j.ready.when)}</span>`);
   if (j.reach) b.push(j.reach.ok ? `<span class="badge b-strong">资格够得上 · Qualified</span>`
                                 : `<span class="badge b-hid">暂时够不上：${esc(j.reach.why)}</span>`);
   if (j.imm === 2) b.push(`<span class="badge b-possible">ATP 行业雇主</span>`);
@@ -606,7 +613,7 @@ function render(){
   mailBar();
   const rows = sortRows(visible());
   $("summary").textContent = `显示 ${rows.length} / ${DATA.jobs.length} 个岗位 · Showing ${rows.length} of ${DATA.jobs.length}`;
-  $("list").innerHTML = partHint() + (rows.length ? rows.slice(0, 300).map(card).join("") :
+  $("list").innerHTML = catHint() + partHint() + (rows.length ? rows.slice(0, 300).map(card).join("") :
     `<div class="empty">没有符合条件的岗位<br><span class="hint">No jobs match these filters.</span></div>`);
 }
 $("toggleFilters").onclick = () => $("filters").classList.toggle("open");
