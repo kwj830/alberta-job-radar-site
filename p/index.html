@@ -87,6 +87,11 @@ main .summary{color:var(--muted);font-size:15px;margin:2px 0 14px}
 .b-part{background:var(--rose-soft);color:var(--rose)}
 .b-hid{background:var(--bg);color:var(--muted);border:1px dashed var(--line)}
 .parthint{color:var(--muted);font-size:15px;margin:0 0 14px}
+.foldhead{margin:30px 0 6px;padding:12px 16px;border-radius:14px;background:var(--rose-soft);color:var(--rose);font-weight:700;font-size:16px}
+.foldhead .sub{display:block;font-weight:400;font-size:14px;margin-top:3px;color:var(--rose)}
+.foldgrp{font-size:15px;font-weight:700;color:var(--muted);margin:18px 0 8px;padding-left:10px;border-left:4px solid var(--line)}
+.card.folded{opacity:.7;border-style:dashed}
+.card.folded .foldtag{display:inline-block;margin:0 0 8px;padding:3px 10px;border-radius:999px;background:var(--rose-soft);color:var(--rose);font-size:13px;font-weight:700}
 .parthint button{border:0;background:none;color:var(--accent);font:inherit;cursor:pointer;padding:0;text-decoration:underline}
 .facts{display:flex;gap:18px;flex-wrap:wrap;color:var(--ink);font-size:15px;margin-top:10px}
 .facts span b{color:var(--muted);font-weight:500;margin-right:4px}
@@ -396,7 +401,9 @@ function partHint(){
   if (state.cat !== "part" && state.cat !== "all") return "";
   const n = DATA.jobs.filter(hidPart).length;
   if (!n) return "";
-  return `<div class="parthint">${state.showHidPart ? "正在显示" : "已收起"} ${n} 条干不了或没用的兼职（外地、要执照或法语、时薪低于你定的标准、超学签 24 小时、跟财务和办公室都不沾边）·
+  return `<div class="parthint">${state.showHidPart
+      ? `已展开 ${n} 条被收起的兼职，单独列在<b>最下面</b>「📦 以下是被收起的兼职」一区，按原因分组 ·`
+      : `已收起 ${n} 条干不了或没用的兼职（外地、要执照或法语、时薪低于你定的标准、超学签 24 小时、跟财务和办公室都不沾边）·`}
     <button data-act="hidpart">${state.showHidPart ? "收起它们" : "展开看看"}</button></div>`;
 }
 function visible(){
@@ -431,10 +438,12 @@ function badges(j){
   if (j.fit === "possible") b.push(`<span class="badge b-possible">可能对口 · Possible fit</span>`);
   if (j.category === "part") b.push(`<span class="badge b-part">兼职 · Part-time</span>`);
   if (j.part && j.part.ok) b.push(`<span class="badge b-possible">${j.part.tier === "field" ? "对口兼职（财务 / 银行 / 数据）" : "办公室类兼职"}</span>`);
-  if (j.part && !j.part.ok) b.push(`<span class="badge b-hid">已收起：${esc(j.part.why)}</span>`);
-  if (j.ready) b.push(`<span class="badge b-strong">🎓 毕业能做 · 入职：${esc(j.ready.when)}</span>`);
-  if (j.reach) b.push(j.reach.ok ? `<span class="badge b-strong">资格够得上 · Qualified</span>`
-                                : `<span class="badge b-hid">暂时够不上：${esc(j.reach.why)}</span>`);
+
+  if (j.ready) b.push(`<span class="badge b-strong">🎓 毕业能做 · 入职：${esc(j.ready.when)}</span>` +
+    (j.ready.known === false ? `<span class="badge b-possible">资格待核实（没拿到原文）</span>` : ""));
+  if (j.reach && j.reach.ok) b.push(j.reach.known === false
+    ? `<span class="badge b-possible">资格待核实（没拿到原文，查不到经验要求）</span>`
+    : `<span class="badge b-strong">资格够得上 · Qualified</span>`);
   if (j.imm === 2) b.push(`<span class="badge b-possible">ATP 行业雇主</span>`);
   return b.join("");
 }
@@ -468,8 +477,36 @@ function resumeState(t){
   if (r.state === "error") return "⚠️ 生成失败，可再点一次 · Failed, retry";
   return "";
 }
+// 这张卡在当前视图里是不是「被收起 / 暂时够不上」的：是就返回 {title, group, why}
+// （本人 2026-10-15：展开后要清楚知道哪些是被收起的 —— 不能和正常岗位混在一起）
+function foldOf(j){
+  if (j.category === "part" && j.part && !j.part.ok && !(TRACK.items[j.uid] || {}).saved)
+    return {kind: "part", group: j.part.group || "其他原因", why: j.part.why};
+  if (state.cat === "pr" && j.reach && !j.reach.ok)
+    return {kind: "reach", group: j.reach.group || "其他原因", why: j.reach.why};
+  return null;
+}
+const FOLD_TEXT = {
+  part: ["以下是被收起的兼职", "按你定的规则判断为干不了或没用；默认不显示、也不推送。按原因分组，想恢复哪类告诉我。"],
+  reach: ["以下是暂时够不上的「PR 优选」", "职业对 PR 有利，但现在资格不够（Senior / 经验要求 2 年及以上 / 已截止），仅供参考。"],
+};
+function foldedSection(rows){
+  const out = [];
+  for (const kind of ["part", "reach"]){
+    const list = rows.filter(j => foldOf(j).kind === kind);
+    if (!list.length) continue;
+    const groups = {};
+    list.forEach(j => (groups[foldOf(j).group] = groups[foldOf(j).group] || []).push(j));
+    out.push(`<div class="foldhead">📦 ${FOLD_TEXT[kind][0]}（共 ${list.length} 条）<span class="sub">${FOLD_TEXT[kind][1]}</span></div>`);
+    Object.keys(groups).sort((a, b) => groups[b].length - groups[a].length).forEach(g => {
+      out.push(`<div class="foldgrp">${esc(g)}（${groups[g].length} 条）</div>` + groups[g].slice(0, 200).map(card).join(""));
+    });
+  }
+  return out.join("");
+}
 function card(j){
   const t = TRACK.items[j.uid] || {};
+  const fold = foldOf(j);
   const d = daysLeft(j.deadline);
   const dlText = j.deadline ? (d < 0 ? "已过期 Expired" : `${j.deadline}（剩 ${d} 天）`)
     : (j.deadline_note || "未写明 N/A");
@@ -478,7 +515,8 @@ function card(j){
   const statusOpts = STATUSES.map(([v,zh,en]) => `<option value="${v}"${(t.status||"")===v?" selected":""}>${zh} · ${en}</option>`).join("");
   const marks = (j.marks||[]).map(m => `<li>${esc(m.text)}</li>`).join("");
   const ev = (j.fit_evidence||[]).map(x => `<li>${esc(x)}</li>`).join("");
-  return `<article class="card${t.saved?" saved":""}" data-uid="${esc(j.uid)}">
+  return `<article class="card${t.saved?" saved":""}${fold?" folded":""}" data-uid="${esc(j.uid)}">
+    ${fold ? `<div class="foldtag">${fold.kind === "part" ? "已收起" : "暂时够不上"} · ${esc(fold.why)}</div>` : ""}
     <div class="row1">
       <div>
         <h2 class="title"><a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a></h2>
@@ -612,9 +650,14 @@ function render(){
   }
   mailBar();
   const rows = sortRows(visible());
-  $("summary").textContent = `显示 ${rows.length} / ${DATA.jobs.length} 个岗位 · Showing ${rows.length} of ${DATA.jobs.length}`;
-  $("list").innerHTML = catHint() + partHint() + (rows.length ? rows.slice(0, 300).map(card).join("") :
-    `<div class="empty">没有符合条件的岗位<br><span class="hint">No jobs match these filters.</span></div>`);
+  const main = rows.filter(j => !foldOf(j)), folded = rows.filter(j => foldOf(j));
+  $("summary").textContent = `显示 ${rows.length} / ${DATA.jobs.length} 个岗位` +
+    (folded.length ? `（正常 ${main.length} 条 + 收起 / 够不上 ${folded.length} 条，分开列在下面）` : "") +
+    ` · Showing ${rows.length} of ${DATA.jobs.length}`;
+  $("list").innerHTML = catHint() + partHint() + (rows.length
+    ? (main.length ? main.slice(0, 300).map(card).join("")
+       : `<div class="empty">${state.cat === "pr" ? "目前没有资格够得上的「PR 优选」岗位" : "这里没有正常显示的岗位"}</div>`) + foldedSection(folded)
+    : `<div class="empty">没有符合条件的岗位<br><span class="hint">No jobs match these filters.</span></div>`);
 }
 $("toggleFilters").onclick = () => $("filters").classList.toggle("open");
 
