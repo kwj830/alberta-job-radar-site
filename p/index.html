@@ -180,6 +180,7 @@ summary{cursor:pointer;color:var(--accent);font-size:15px}
       <select class="field" id="sort">
         <option value="">推荐顺序 Recommended</option>
         <option value="deadline">截止日期最近在前 Deadline soonest</option>
+        <option value="imm">移民利好度 Immigration benefit</option>
       </select>
 
       <h3>关键词 <span class="en">Keyword</span></h3>
@@ -346,10 +347,18 @@ function buildFilters(){
     const k = b.dataset.fit; state.fits.has(k) ? state.fits.delete(k) : state.fits.add(k); b.classList.toggle("on"); render(); };
   const uniq = key => [...new Set(J.map(key).filter(Boolean))].sort();
   options($("city"), uniq(j => j.city).map(c => [c,c]), "全部城市", "All cities");
-  // 雇主：不分大小写按 A→Z 排，并写出岗位数（原来区分大小写，小写开头的公司名全排到了最后）
-  const nemp = {}; J.forEach(j => { if (j.employer) nemp[j.employer] = (nemp[j.employer] || 0) + 1; });
-  options($("employer"), Object.keys(nemp).sort((a, b) => a.localeCompare(b, "en", {sensitivity: "base"}))
-    .map(c => [c, c + "（" + nemp[c] + "）"]), "全部雇主", "All employers");
+  // 雇主：按移民利好度分组（ATP 双满足 → ATP 行业 → 行业已核实 → 未核实；本人 2026-10-15 要求），
+  // 组内按对口岗位数多→少，再按名字 A→Z（不分大小写）；后面写出岗位数
+  const emp = {};
+  J.forEach(j => { if (!j.employer) return; const e = emp[j.employer] || (emp[j.employer] = {n:0, fit:0, tier:0});
+    e.n++; if (j.category === "pr" || j.fit !== "none") e.fit++; e.tier = Math.max(e.tier, j.imm || 0); });
+  const TIER = {3:"★★ ATP 双满足（移民最有利）", 2:"★ ATP 行业雇主", 1:"行业已核实（非 ATP，可走 AOS / CEC）", 0:"行业未核实"};
+  const names = Object.keys(emp).sort((a, b) => emp[b].tier - emp[a].tier || emp[b].fit - emp[a].fit
+    || a.localeCompare(b, "en", {sensitivity: "base"}));
+  $("employer").innerHTML = `<option value="">全部雇主 All employers</option>` + [3,2,1,0].map(t => {
+    const list = names.filter(n => emp[n].tier === t); if (!list.length) return "";
+    return `<optgroup label="${esc(TIER[t])}">` + list.map(n => `<option value="${esc(n)}">${esc(n)}（${emp[n].n}${emp[n].fit ? " · 对口 " + emp[n].fit : ""}）</option>`).join("") + `</optgroup>`;
+  }).join("");
   // 按岗位数从多到少排、并写出条数：按字母排时 Indeed 混在 40 多个来源中间，手机上找不到（2026-10-14）
   const srcs = {}, nsrc = {};
   J.forEach(j => { srcs[j.source.zh] = j.source.zh + " · " + j.source.en; nsrc[j.source.zh] = (nsrc[j.source.zh] || 0) + 1; });
@@ -417,6 +426,9 @@ function badges(j){
   if (j.category === "part") b.push(`<span class="badge b-part">兼职 · Part-time</span>`);
   if (j.part && j.part.ok) b.push(`<span class="badge b-possible">${j.part.tier === "field" ? "对口兼职（财务 / 银行 / 数据）" : "办公室类兼职"}</span>`);
   if (j.part && !j.part.ok) b.push(`<span class="badge b-hid">已收起：${esc(j.part.why)}</span>`);
+  if (j.reach) b.push(j.reach.ok ? `<span class="badge b-strong">现在就能申 · Within reach</span>`
+                                : `<span class="badge b-hid">暂时够不上：${esc(j.reach.why)}</span>`);
+  if (j.imm === 2) b.push(`<span class="badge b-possible">ATP 行业雇主</span>`);
   return b.join("");
 }
 // 文字里让人「去原网页 / 官网 / Workday 看」的，旁边直接给能点的链接（本人 2026-09-28 要求：不要让她自己去找）
@@ -494,7 +506,16 @@ function card(j){
 // 「截止日期最近在前」：还没截止的按剩余天数升序；没写截止日期的排在后面（保持推荐顺序）；
 // 已过期的放最后。同组内用原下标保持推荐顺序（Array.sort 在旧 Safari 上不保证稳定）。
 function sortRows(rows){
-  if ($("sort").value !== "deadline") return rows;
+  const v = $("sort").value;
+  // PR 优选：现在就能申的排前面，Senior / 多年经验 / 已截止的排后面
+  const reachKey = j => (j.reach && !j.reach.ok) ? 1 : 0;
+  if (v === "imm") {
+    const cat = {pr: 0, full: 1, grad: 1, part: 2};
+    return rows.map((j, i) => [j, i]).sort((a, b) => (cat[a[0].category] ?? 1) - (cat[b[0].category] ?? 1)
+      || (b[0].imm || 0) - (a[0].imm || 0) || reachKey(a[0]) - reachKey(b[0]) || a[1] - b[1]).map(x => x[0]);
+  }
+  if (v !== "deadline") return state.cat === "pr"
+    ? rows.map((j, i) => [j, i]).sort((a, b) => reachKey(a[0]) - reachKey(b[0]) || a[1] - b[1]).map(x => x[0]) : rows;
   const key = j => { const d = daysLeft(j.deadline); return d == null ? [1, 0] : d < 0 ? [2, -d] : [0, d]; };
   return rows.map((j, i) => [key(j), i, j])
     .sort((a, b) => a[0][0] - b[0][0] || a[0][1] - b[0][1] || a[1] - b[1]).map(x => x[2]);
