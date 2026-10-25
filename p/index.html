@@ -702,8 +702,9 @@ function remember(t, j){ if (!j || j._gone) return; t.title = j.title; t.employe
   if (j.salary) t.salary = j.salary; if (j.deadline) t.deadline = j.deadline; if (j.place) t.place = j.place; }   // 岗位下架后「公司说多久回复」还在
 
 // ── 同步（GitHub 私有仓库）──────────────────────────
-// 本机手动设置的令牌优先；没有就用加密数据里自带的（口令解锁后才拿得到）
-const token = () => store.get("radar.token") || (DATA && DATA.tracker && DATA.tracker.token) || "";
+// 加密数据里自带的令牌优先（口令解锁后才拿得到）；没有才用本机手动设置的。
+// 2026-10-25 换令牌时发现：本机存过的旧令牌会盖住云端换上的新令牌，旧令牌一过期那台设备就同步失败
+const token = () => (DATA && DATA.tracker && DATA.tracker.token) || store.get("radar.token") || "";
 const api = () => `https://api.github.com/repos/${DATA.tracker.repo}/contents/${DATA.tracker.path}`;
 function setSync(msg){ $("updated").textContent = "更新于 " + fmtTime(DATA.generated_at) + " · " + DATA.jobs.length + " 个在招岗位 · " + msg; }
 async function pullTracker(){
