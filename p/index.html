@@ -383,7 +383,7 @@ function buildCats(){
   const J = DATA.jobs;
   const shown = J.filter(j => !hidPart(j));
   const n = {all:shown.length, pr:J.filter(j=>j.category==="pr").length, full:J.filter(j=>j.category==="full").length,
-    part:shown.filter(j=>j.category==="part").length, ready:J.filter(j=>j.ready).length, grad:J.filter(j=>j.grad).length, saved:J.filter(j=>TRACK.items[j.uid]?.saved).length,
+    part:shown.filter(j=>j.category==="part").length, ready:J.filter(j=>j.ready && j.ready.ok !== false && !j.closed).length, grad:J.filter(j=>j.grad).length, saved:J.filter(j=>TRACK.items[j.uid]?.saved).length,
     applied:appliedUids().length};
   document.querySelectorAll("[data-count]").forEach(s => s.innerHTML = (n[s.dataset.count] ?? "") +
     (s.dataset.count === "applied" && unseenMail().length ? '<span class="dot" title="有未读来信"></span>' : ""));
@@ -394,7 +394,7 @@ const hidPart = j => j.category === "part" && j.part && !j.part.ok && !(TRACK.it
 // 两个容易混的分类，顶部写清标准（本人 2026-10-15 问「现在这个 PR 优选是什么标准」）
 function catHint(){
   if (state.cat === "pr") return `<div class="parthint">「PR 优选」：职业对口（数据 / 金融 / 咨询 / 市场研究分析等 TEER 1 职业）且是全职，毕业后拿毕业工签在阿省全职做能计入 CEC / AOS；或职业和雇主行业都在阿省 ATP 名单上。<b>不代表你现在够得上</b>——看每张卡片上的「资格够得上 / 暂时够不上」。</div>`;
-  if (state.cat === "ready") return `<div class="parthint">「毕业能做」：毕业后入职（写明 2027 年 8 月及以后，或 2027 届应届生项目）、不是在读学生岗、不是 Senior、经验要求不到 2 年、没过截止、全职、在阿省或地点未写、方向和你专业沾边。毕业时间按 12 个月版（2027 年 8 月）算。</div>`;
+  if (state.cat === "ready") return `<div class="parthint">「毕业能做」：原帖写明 2027 年 8 月及以后入职、不是在读学生岗、不是 Senior、经验要求不到 2 年、没过截止、全职、在阿省或地点未写、方向和你专业沾边。毕业时间按 12 个月版（2027 年 8 月）算。<b>原帖没写入职时间、只写了 2027 年、或入职早于毕业的</b>，单独列在下面「入职时间待核实」一区。</div>`;
   return "";
 }
 function partHint(){
@@ -433,14 +433,18 @@ function badges(j){
   const b = [];
   if (j.atp) b.push(`<span class="badge b-atp">★ ATP 双满足 · ATP match</span>`);
   if (j.early_start) b.push(`<span class="badge b-early">🔴 入职早于毕业（${esc(j.early_start.replace(/(\d{4})-(\d{2})/, (m,y,mo) => y+" 年 "+(+mo)+" 月"))} 入职）· Starts before you graduate</span>`);
-  if (j.new_grad) b.push(`<span class="badge b-grad">应届 / 明年入职 · New grad</span>`);
+  if (j.verified) b.push(`<span class="badge b-strong">✅ 已打开原帖核对（${esc(j.verified.on || "")}）</span>`);
+  if (j.closed) b.push(`<span class="badge b-early">⛔ 已关闭 · ${esc(j.closed.group)}</span>`);
+  // 写清入职时间（本人 2026-10-25：原来统一写「应届 / 明年入职」，其实原帖多半没写）
+  if (j.new_grad) b.push(`<span class="badge b-grad">${esc(j.grad_label || "应届 · New grad")}</span>`);
   if (j.fit === "strong") b.push(`<span class="badge b-strong">强对口 · Strong fit</span>`);
   if (j.fit === "possible") b.push(`<span class="badge b-possible">可能对口 · Possible fit</span>`);
   if (j.category === "part") b.push(`<span class="badge b-part">兼职 · Part-time</span>`);
   if (j.part && j.part.ok) b.push(`<span class="badge b-possible">${j.part.tier === "field" ? "对口兼职（财务 / 银行 / 数据）" : "办公室类兼职"}</span>`);
 
-  if (j.ready) b.push(`<span class="badge b-strong">🎓 毕业能做 · 入职：${esc(j.ready.when)}</span>` +
+  if (j.ready && j.ready.ok !== false) b.push(`<span class="badge b-strong">🎓 毕业能做 · 入职：${esc(j.ready.when)}</span>` +
     (j.ready.known === false ? `<span class="badge b-possible">资格待核实（没拿到原文）</span>` : ""));
+  if (j.ready && j.ready.ok === false) b.push(`<span class="badge b-possible">🎓 入职时间待核实 · ${esc(j.ready.group)}</span>`);
   if (j.reach && j.reach.ok) b.push(j.reach.known === false
     ? `<span class="badge b-possible">资格待核实（没拿到原文，查不到经验要求）</span>`
     : `<span class="badge b-strong">资格够得上 · Qualified</span>`);
@@ -480,6 +484,9 @@ function resumeState(t){
 // 这张卡在当前视图里是不是「被收起 / 暂时够不上」的：是就返回 {title, group, why}
 // （本人 2026-10-15：展开后要清楚知道哪些是被收起的 —— 不能和正常岗位混在一起）
 function foldOf(j){
+  if (j.closed) return {kind: "closed", group: j.closed.group, why: j.closed.why};
+  if (state.cat === "ready" && j.ready && j.ready.ok === false)
+    return {kind: "ready", group: j.ready.group, why: j.ready.why};
   if (j.category === "part" && j.part && !j.part.ok && !(TRACK.items[j.uid] || {}).saved)
     return {kind: "part", group: j.part.group || "其他原因", why: j.part.why};
   if (state.cat === "pr" && j.reach && !j.reach.ok)
@@ -487,12 +494,14 @@ function foldOf(j){
   return null;
 }
 const FOLD_TEXT = {
+  ready: ["以下是入职时间待核实的「毕业能做」", "原帖没写入职时间、只写了年份、或入职早于毕业 —— 可能要马上上岗，也可能在你毕业前入职。投之前先问清楚。"],
+  closed: ["以下是已经关闭的岗位", "已确认不再招人（打开原帖核对过，或雇主官网写着已关闭）；留着只是让你知道它去哪了。"],
   part: ["以下是被收起的兼职", "按你定的规则判断为干不了或没用；默认不显示、也不推送。按原因分组，想恢复哪类告诉我。"],
   reach: ["以下是暂时够不上的「PR 优选」", "职业对 PR 有利，但现在资格不够（Senior / 经验要求 2 年及以上 / 已截止），仅供参考。"],
 };
 function foldedSection(rows){
   const out = [];
-  for (const kind of ["part", "reach"]){
+  for (const kind of ["ready", "reach", "part", "closed"]){
     const list = rows.filter(j => foldOf(j).kind === kind);
     if (!list.length) continue;
     const groups = {};
@@ -511,12 +520,12 @@ function card(j){
   const dlText = j.deadline ? (d < 0 ? "已过期 Expired" : `${j.deadline}（剩 ${d} 天）`)
     : (j.deadline_note || "未写明 N/A");
   const why = k => (j.missing && j.missing[k]) ? `<span class="why">${esc(j.missing[k])}${goLinks(j.missing[k], j)}</span>` : "";
-  const startText = j.start ? j.start.replace(/(\d{4})-(\d{2})/g, (m,y,mo) => `${y} 年 ${+mo} 月`) : "未写明 N/A";
+  const startText = j.start ? j.start.replace(/(\d{4})-(\d{2})/g, (m,y,mo) => `${y} 年 ${+mo} 月`).replace(/^(\d{4})$/, "$1 年") : "未写明 N/A";
   const statusOpts = STATUSES.map(([v,zh,en]) => `<option value="${v}"${(t.status||"")===v?" selected":""}>${zh} · ${en}</option>`).join("");
   const marks = (j.marks||[]).map(m => `<li>${esc(m.text)}</li>`).join("");
   const ev = (j.fit_evidence||[]).map(x => `<li>${esc(x)}</li>`).join("");
   return `<article class="card${t.saved?" saved":""}${fold?" folded":""}" data-uid="${esc(j.uid)}">
-    ${fold ? `<div class="foldtag">${fold.kind === "part" ? "已收起" : "暂时够不上"} · ${esc(fold.why)}</div>` : ""}
+    ${fold ? `<div class="foldtag">${{part: "已收起", reach: "暂时够不上", ready: "入职时间待核实", closed: "已关闭"}[fold.kind]} · ${esc(fold.why)}</div>` : ""}
     <div class="row1">
       <div>
         <h2 class="title"><a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a></h2>
@@ -531,10 +540,12 @@ function card(j){
     <div class="facts">
       <span><b>薪资 Pay</b>${esc(j.salary || "未写明 N/A")}${why("salary")}</span>
       <span><b>截止 Deadline</b>${esc(dlText)}${j.deadline ? "" : (j.deadline_note ? goLinks(j.deadline_note, j) : "") + why("deadline")}</span>
-      <span><b>入职 Start</b>${esc(startText)}${why("start")}</span>
-      ${j.noc && j.noc.code ? `<span><b>NOC</b>${esc(j.noc.code)} · TEER ${esc(j.noc.teer)}</span>` : ""}
+      <span><b>入职 Start</b>${esc(startText)}${j.start_note && j.start ? `<span class="why">${esc(j.start_note)}</span>` : ""}${why("start")}</span>
+      ${j.noc && j.noc.pending ? `<span><b>NOC</b>待核实<span class="why">${esc(j.noc.pending)}${goLinks(j.noc.pending, j)}</span></span>` :
+        j.noc && j.noc.code ? `<span><b>NOC</b>${esc(j.noc.code)} · TEER ${esc(j.noc.teer)}</span>` : ""}
     </div>
     ${j.note ? `<div class="source" style="color:var(--ink)">💬 ${esc(j.note)}</div>` : ""}
+    ${j.email_age != null && !j.closed ? `<div class="hint">📨 ${j.email_age ? j.email_age + " 天前" : "今天"}收到的提醒邮件 · 雷达不能自动确认它还在不在招，投之前先打开原网页看一眼${goLinks("原网页", j)}</div>` : ""}
     <div class="source">来源 Source：<b>${esc(j.source.zh)}</b> · ${esc(j.source.en)} · <a href="${esc(j.url)}" target="_blank" rel="noopener">查看原文 Open posting ↗</a></div>
     <details><summary>为什么推荐 / 注意事项 · Why & notes</summary>
       ${ev ? `<ul class="marks">${ev}</ul>` : ""}<ul class="marks">${marks}</ul>
