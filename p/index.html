@@ -409,7 +409,7 @@ function partHint(){
   if (!n) return "";
   return `<div class="parthint">${state.showHidPart
       ? `已展开 ${n} 条被收起的兼职，单独列在<b>最下面</b>「📦 以下是被收起的兼职」一区，按原因分组 ·`
-      : `已收起 ${n} 条干不了或不对口的兼职（外地、要执照或法语、时薪低于你定的标准、超学签 24 小时、办公室 / 前台类、跟财务数据不沾边）·`}
+      : `已收起 ${n} 条干不了或不对口的兼职（外地、要执照或法语、时薪低于你定的标准、超学签 24 小时、纯会计、办公室 / 前台类、跟金融和专业都不沾边）·`}
     <button data-act="hidpart">${state.showHidPart ? "收起它们" : "展开看看"}</button></div>`;
 }
 function visible(){
@@ -450,7 +450,7 @@ function badges(j){
   if (j.fit === "strong") b.push(`<span class="badge b-strong">强对口 · Strong fit</span>`);
   if (j.fit === "possible") b.push(`<span class="badge b-possible">可能对口 · Possible fit</span>`);
   if (j.category === "part") b.push(`<span class="badge b-part">兼职 · Part-time</span>`);
-  if (j.part && j.part.ok) b.push(`<span class="badge b-possible">${j.part.tier === "campus" ? "🏫 阿大校内岗（不受每周 24 小时限制）" : "对口兼职（财务 / 银行 / 数据）"}</span>` +
+  if (j.part && j.part.ok) b.push(`<span class="badge b-possible">${{campus: "🏫 阿大校内岗（不受每周 24 小时限制）", finance: "💰 金融沾边（银行 / 投资 / 保险）", major: "📊 专业沾边（数据 / 分析 / 研究）"}[j.part.tier] || "对口兼职"}</span>` +
     (j.part.why ? `<span class="badge b-possible">${esc(j.part.why)}</span>` : ""));
 
   if (j.ready && j.ready.ok !== false) b.push(`<span class="badge b-strong">🎓 毕业能做 · 入职：${esc(j.ready.when)}</span>` +
